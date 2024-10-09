@@ -12,7 +12,6 @@ router = APIRouter()
 def get_logs(
     request: Request,
     log_name: str,
-    start_line: int = 0,
     amount: int = 100,
     log_severity: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
     order: Literal["asc", "desc"] = "asc",
@@ -20,9 +19,8 @@ def get_logs(
     try:
         logs: List[LogEntry] = read_logs(
             log_name=log_name,
-            start_line=start_line,
             amount=amount,
-            log_severity=log_severity,
+            severity=log_severity,
             order=order,
         )
         return logs

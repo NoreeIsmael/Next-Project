@@ -1,11 +1,12 @@
-from typing import List, Literal, Optional, cast, Union, Tuple
+from typing import List, Literal, Optional, cast, Tuple, Generator, Any
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from pathlib import Path
 from re import match, Match, DOTALL
 
 from backend.lib.api.logs.models import LogEntry
+from backend.lib.api.logs import logger
 
-LOG_LEVEL_STRING_TO_LITERAL: dict[str, int] = {
+SEVERITY_LEVELS: dict[str, int] = {
     "DEBUG": DEBUG,
     "INFO": INFO,
     "WARNING": WARNING,
@@ -13,12 +14,80 @@ LOG_LEVEL_STRING_TO_LITERAL: dict[str, int] = {
     "CRITICAL": CRITICAL,
 }
 
+HasLogSeverity = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 # Captures the timestamp, log level, source and message of a log line into 4 groups, assuming the log line is in the format:
 # [2024-09-17 10:44:45] [DEBUG   ] backend.lib.settings: autosave_on_exit is enabled; registering save method.
 LOG_CAPTURE_PATTERN: str = (
     r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\s*\] ([\w\s\.]+(?: \([\w\s]+\))?): (.+)"
 )
+
+
+def is_start_of_log_entry(line: str) -> bool:
+    return match(pattern=LOG_CAPTURE_PATTERN, string=line) is not None
+
+
+def read_logs_as_generator(
+    log_name: str, order: Literal["asc", "desc"]
+) -> Generator[str, Any, None]:
+    """
+    Reads a log file line by line and yields each line as a generator.
+
+    Args:
+        log_name (str): The name of the log file (without extension) to read.
+
+    Yields:
+        str: Each line of the log file.
+
+    Raises:
+        FileNotFoundError: If the log file does not exist.
+        IOError: If an error occurs while trying to read the log file.
+    """
+    file_path: Path = Path("backend/logs") / f"{log_name}.log"
+    if order == "asc":
+        try:
+            with open(file=file_path, mode="r") as log_file:
+                for log_line in log_file:
+                    yield log_line
+
+        except FileNotFoundError:
+            logger.exception(msg="Log file not found")
+            raise
+        except IOError:
+            logger.exception(msg="An error occurred while trying to read the logs")
+            raise
+    else:
+        try:
+            with open(file=file_path, mode="rb") as log_file:
+                # Start at the end of the file, create a buffer to
+                # store the bytes we read and set the pointer location
+                # to the end of the file.
+                log_file.seek(0, 2)
+                buffer: List[bytes] = []
+                pointer_location: int = log_file.tell()
+                # Read the file backwards, one byte at a time until we
+                # reach the start of the file, or the calling code stops
+                while pointer_location >= 0:
+                    log_file.seek(pointer_location)
+                    new_byte: bytes = log_file.read(1)
+                    # If we encounter a newline character and the buffer
+                    # is not empty, we have reached the start of a log entry.
+                    if new_byte == b"\n" and buffer:
+                        line: str = b"".join(buffer[::-1]).decode(encoding="utf-8")
+                        if is_start_of_log_entry(line=line):
+                            yield line.replace("\r", "\n")
+                            buffer = []
+                    else:
+                        buffer.append(new_byte)
+                    pointer_location -= 1
+                if buffer:
+                    yield b"".join(buffer[::-1]).decode(encoding="utf-8")
+        except FileNotFoundError:
+            logger.exception(msg="Log file not found")
+            raise
+        except IOError:
+            logger.exception(msg="An error occurred while trying to read the logs")
+            raise
 
 
 def parse_log_line(log_line: str) -> Optional[Tuple[str, str, str, str]]:
@@ -32,74 +101,51 @@ def parse_log_line(log_line: str) -> Optional[Tuple[str, str, str, str]]:
 
 def read_logs(
     log_name: str,
-    start_line: int,
-    amount: int,
-    log_severity: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    order: Literal["asc", "desc"],
+    amount: int = 100,
+    severity: HasLogSeverity = "INFO",
+    order: Literal["asc", "desc"] = "asc",
 ) -> List[LogEntry]:
-    literal_log_severity: int = LOG_LEVEL_STRING_TO_LITERAL[log_severity]
-    # [2024-09-17 10:44:45] [DEBUG   ] backend.lib.settings: autosave_on_exit is enabled; registering save method.
-    with open(file=f"backend/logs/{log_name}.log", mode="r") as log_file:
-        # TODO: Reading the entire file can be resource intensive and even dangerous if the file is too large.
-        # However, Python does not have built-in functions for reading a file backwards. Create or find a library that can read a file backwards.
-        read_log_lines: List[str] = log_file.readlines()
+    logs: List = []
+    log_generator: Generator[str, Any, None] = read_logs_as_generator(
+        log_name=log_name, order=order
+    )
+    severity_level: int = SEVERITY_LEVELS[severity]
 
-    if order == "desc":
-        read_log_lines.reverse()
-
-    log_lines: List[LogEntry] = []
-    previous_log_level: int = -1
-    # Keep reading until we have the requested amount of log lines
-    while len(log_lines) < amount and start_line < len(read_log_lines):
-        log_line: str = read_log_lines[start_line]
-        # Remove leading and trailing whitespace, newlines, tabs, escaped double quotes and backslashes
-        start_line += 1
-
+    for log_line in log_generator:
         if log_line.strip() == "":
-            # Skip empty lines
             continue
-
-        parsed_log: Optional[Tuple[str, str, str, str]] = parse_log_line(
+        parsed_log_line: Optional[Tuple[str, str, str, str]] = parse_log_line(
             log_line=log_line
         )
-        if parsed_log is None:
-            # Ensure we have a log level to compare against
-            if len(log_lines) == 0:
+        if parsed_log_line is None:
+            if not len(logs) > 0:
                 continue
-            # If the previous log line that was read has a log level that is less than the requested log severity, skip this line
-            if previous_log_level > literal_log_severity:
+
+            previous_log: LogEntry = logs[-1]
+            if not SEVERITY_LEVELS[previous_log.severity] <= severity_level:
                 continue
-            # Assume it is part of a multiline log message where the previous line was the log level
-            last_log_line: LogEntry = log_lines[-1]
-            last_log_line.message += log_line
+
+            previous_log.message += log_line
             continue
-        else:
-            literal_log_level: int = LOG_LEVEL_STRING_TO_LITERAL[parsed_log[1]]
-            if literal_log_level <= literal_log_severity:
-                timestamp: str = parsed_log[0]
-                severity: Union[
-                    Literal["DEBUG"],
-                    Literal["INFO"],
-                    Literal["WARNING"],
-                    Literal["ERROR"],
-                    Literal["CRITICAL"],
-                ] = cast(
-                    Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-                    parsed_log[1],
-                )
-                source: str = parsed_log[2]
-                message: str = parsed_log[3]
-                log_lines.append(
+
+        if not len(logs) >= amount:
+            timestamp: str = parsed_log_line[0]
+            log_level: HasLogSeverity = cast(HasLogSeverity, parsed_log_line[1])
+            source: str = parsed_log_line[2]
+            message: str = parsed_log_line[3]
+            if SEVERITY_LEVELS[log_level] <= severity_level:
+                logs.append(
                     LogEntry(
                         timestamp=timestamp,
-                        severity=severity,
+                        severity=log_level,
                         source=source,
                         message=message,
                     )
                 )
-            previous_log_level = literal_log_level
+        else:
+            break
 
-    return log_lines
+    return logs
 
 
 def get_log_file_names_on_disk() -> List[str]:
