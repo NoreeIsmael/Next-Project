@@ -53,6 +53,7 @@ export class LoginPageComponent implements OnInit {
       this.dataService.checkForActiveQuestionnaires(id)
         .subscribe({
           next: (activeQuestionnaireId) => {
+            console.log(activeQuestionnaireId)
             // Step 2: If an active questionnaire ID is returned, set redirection flags
             if (activeQuestionnaireId) {
               this.setRedirectionFlags({ id: activeQuestionnaireId } as ActiveQuestionnaire, role);

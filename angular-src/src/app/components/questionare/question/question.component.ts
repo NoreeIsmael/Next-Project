@@ -22,7 +22,7 @@ export class QuestionComponent {
   selectOption(optionId: number | undefined, isCustom: boolean | undefined) {
     this.selectedOption = optionId;
     this.isCustomInput = !!isCustom; // Set isCustomInput based on the selected option's isCustom flag
-
+    console.log(this.selectedOption)
     if (!isCustom) {
       this.optionSelected.emit({ optionId: optionId, customAnswer: undefined }); // Emit selected option
     }

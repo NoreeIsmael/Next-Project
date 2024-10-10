@@ -24,35 +24,31 @@ export class MockDataService {
     this.mockDbService.loadInitialMockData();
   }
 
-  checkForActiveQuestionnaire(id: string, role: string): Observable<{ hasActive: boolean, urlString: string }> {
-    if (!id || !role) {
-      return of({ hasActive: false, urlString: '' });
+  checkForActiveQuestionnaires(userId: string): Observable<string | null> {
+    // Check if userId is provided
+    if (!userId) {
+      return of(null);
     }
-    
+  
     const mockActiveQuestionnaires = this.mockDbService.mockData.mockActiveQuestionnaire;
   
-    let activeQuestionnaire;
-  
-    // Check for active questionnaires based on the user's role
-    if (role === 'student') {
-      activeQuestionnaire = mockActiveQuestionnaires.find(
-        (questionnaire: ActiveQuestionnaire) =>
-          questionnaire.student.id === id && !questionnaire.isStudentFinished
+    // Find an active questionnaire for the user, regardless of role (student or teacher)
+    const activeQuestionnaire = mockActiveQuestionnaires.find((questionnaire: ActiveQuestionnaire) => {
+      return (
+        (questionnaire.student.id === userId && !questionnaire.isStudentFinished) ||
+        (questionnaire.teacher.id === userId && !questionnaire.isTeacherFinished)
       );
-    } else if (role === 'teacher') {
-      activeQuestionnaire = mockActiveQuestionnaires.find(
-        (questionnaire: ActiveQuestionnaire) =>
-          questionnaire.teacher.id === id && !questionnaire.isTeacherFinished
-      );
-    }
+    });
   
-    // Return result based on whether an active questionnaire was found
+    // Return the ID of the active questionnaire if found, or null otherwise
     if (activeQuestionnaire) {
-      return of({ hasActive: true, urlString: `${activeQuestionnaire.id}` });
+      return of(activeQuestionnaire.id).pipe(delay(250)); // Simulate delay for mock data
     }
   
-    return of({ hasActive: false, urlString: '' });
+    // Return null if no active questionnaire is found
+    return of(null).pipe(delay(250));
   }
+  
   
   
   
@@ -484,7 +480,25 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
       catchError(this.handleError('getDashboardData'))
     );
   }
-
+  getActiveQuestionnaireById(id: string): Observable<ActiveQuestionnaire | null> {
+    // Check if the provided ID is valid
+    if (!id) {
+      return of(null);
+    }
+  
+    // Search for the active questionnaire by its ID in the mock database
+    const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(
+      (questionnaire: ActiveQuestionnaire) => questionnaire.id === id
+    );
+  
+    // Return the active questionnaire if found, or null otherwise
+    if (activeQuestionnaire) {
+      return of(activeQuestionnaire).pipe(delay(250)); // Simulate delay for mock data
+    } else {
+      // Return null if no active questionnaire is found
+      return of(null).pipe(delay(250));
+    }
+  }
 
 
   getActiveQuestionnaireByUserId(id: string): Observable<ActiveQuestionnaire | null> {

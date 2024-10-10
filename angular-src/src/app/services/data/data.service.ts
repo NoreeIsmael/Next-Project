@@ -156,7 +156,7 @@ export class DataService {
     const url = `${this.apiUrl}/questionnaire/active/check/${userId}`;
     return this.http.get<string|null>(url)
     .pipe(
-      catchError(this.handleError<string | null>('getActivecheckForActiveQuestionnairesQuestionnairePage'))
+      catchError(this.handleError<string | null>('checkForActiveQuestionnaires'))
     );
   }
 
@@ -172,11 +172,22 @@ export class DataService {
 
   // Get questions for a user based on the template
   getQuestionsForUser(templateId: string): Observable<Question[]> {
-    const url = `${this.apiUrl}/questions/${templateId}`;
-    return this.http.get<Question[]>(url)
-      .pipe(
-        catchError(this.handleError<Question[]>('getQuestionsForUser', []))
-      );
+    const url = `${this.apiUrl}/templates/get/${templateId}`;
+    return this.http.get<Question[]>(url).pipe(
+      map((response: any) => {
+        // Ensure that the response contains a valid array of questions
+        if (response && Array.isArray(response.questions)) {
+          return response.questions as Question[];
+        } else {
+          console.warn(`Unexpected response format:`, response);
+          return []; // Return an empty array if the response is not in the expected format
+        }
+      }),
+      catchError(error => {
+        console.error(`Error fetching questions for template ${templateId}:`, error);
+        return of([]); // Return an empty array on error
+      })
+    );
   }
 
   // Submit user answers
