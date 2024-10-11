@@ -195,15 +195,16 @@ export class MockDataService {
     // Helper function to process answer labels
     const getOptionLabel = (answer: Answer | undefined, question: Question): string => {
       if (!answer) return 'No answer provided';
-      const selectedOptionId = answer.selectedOptionId;
-      if (selectedOptionId !== undefined && selectedOptionId !== null) {
-        const optionType = question.options.find((opt: any) => opt.id === selectedOptionId);
+    
+      if (answer.selectedOptionId !== undefined && answer.selectedOptionId !== null) {
+        const optionType = question.options.find((opt: any) => opt.id === answer.selectedOptionId);
         return optionType ? optionType.label : 'No label found';
-      } else if (answer.customAnswer) {
+      } else if (answer.customAnswer !== undefined && answer.customAnswer !== null) {
         return answer.customAnswer;
       }
       return 'No answer provided';
     };
+    
   
     // Step 1: Find the active questionnaire and answer session
     const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(

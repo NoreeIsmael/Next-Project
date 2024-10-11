@@ -13,6 +13,8 @@ import { ErrorHandlingService } from '../../services/error-handling.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { QuestionComponent } from './question/question.component';
 
+
+// REMEMBER TO FIX ISSUE WITH ALWAYS HAVING ACCESS
 @Component({
   selector: 'app-questionare',
   standalone: true,
@@ -116,19 +118,23 @@ export class QuestionareComponent implements OnInit {
     }
   }
 
-  selectOption(optionData: { optionId: number | undefined, customAnswer?: string }): void {
+  selectOption(optionData: { optionId: number | undefined; customAnswer?: string }): void {
     if (this.metadata) {
       const currentQuestion = this.questions[this.metadata.currentIndex];
       if (typeof optionData.optionId === 'number') {
         currentQuestion.selectedOption = optionData.optionId;
         currentQuestion.customAnswer = undefined;
       } else if (typeof optionData.customAnswer === 'string') {
-        currentQuestion.customAnswer = optionData.customAnswer;
         currentQuestion.selectedOption = undefined;
+        currentQuestion.customAnswer = optionData.customAnswer;
+      } else {
+        currentQuestion.selectedOption = undefined;
+        currentQuestion.customAnswer = undefined;
       }
       this.questionsSubject.next(this.questions);
     }
   }
+  
 
   submit(): void {
     if (this.activeQuestionnaire) {
@@ -153,9 +159,9 @@ export class QuestionareComponent implements OnInit {
 
   private createAnswers(): Answer[] {
     return this.questions.map((question) => {
-      if (question.selectedOption) {
+      if (question.selectedOption !== undefined) {
         return { questionId: question.id, selectedOptionId: question.selectedOption };
-      } else if (question.customAnswer) {
+      } else if (question.customAnswer !== undefined) {
         return { questionId: question.id, customAnswer: question.customAnswer };
       }
       return null;
@@ -167,6 +173,18 @@ export class QuestionareComponent implements OnInit {
       return false;
     }
     const currentQuestion = this.questions[this.metadata.currentIndex];
-    return currentQuestion && currentQuestion.selectedOption !== undefined;
+    if (currentQuestion) {
+      if (currentQuestion.selectedOption !== undefined) {
+        // A standard option is selected
+        return true;
+      } else if (
+        currentQuestion.customAnswer !== undefined &&
+        currentQuestion.customAnswer.trim().length > 0
+      ) {
+        // A custom answer is provided
+        return true;
+      }
+    }
+    return false;
   }
 }
