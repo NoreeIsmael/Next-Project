@@ -27,6 +27,15 @@ def is_start_of_log_entry(line: str) -> bool:
     return match(pattern=LOG_CAPTURE_PATTERN, string=line) is not None
 
 
+def parse_log_line(log_line: str) -> Optional[Tuple[str, str, str, str]]:
+    _match: Optional[Match[str]] = match(
+        pattern=LOG_CAPTURE_PATTERN, string=log_line, flags=DOTALL
+    )
+    if _match:
+        return cast(Tuple[str, str, str, str], _match.groups())
+    return None
+
+
 def read_logs_as_generator(
     log_name: str, order: Literal["asc", "desc"]
 ) -> Generator[str, Any, None]:
@@ -88,15 +97,6 @@ def read_logs_as_generator(
         except IOError:
             logger.exception(msg="An error occurred while trying to read the logs")
             raise
-
-
-def parse_log_line(log_line: str) -> Optional[Tuple[str, str, str, str]]:
-    _match: Optional[Match[str]] = match(
-        pattern=LOG_CAPTURE_PATTERN, string=log_line, flags=DOTALL
-    )
-    if _match:
-        return cast(Tuple[str, str, str, str], _match.groups())
-    return None
 
 
 def read_logs(
