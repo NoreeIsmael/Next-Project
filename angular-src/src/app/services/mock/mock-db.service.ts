@@ -6,9 +6,7 @@ import { LogEntry } from '../../models/log-models';
 
 export type LogFileType = 'sql' | 'backend' | 'settings_manager';
 interface MockLogs {
-  sql: LogEntry[];
-  backend: LogEntry[];
-  settings_manager: LogEntry[];
+  [key: string]: LogEntry[];
 }
 
 @Injectable({

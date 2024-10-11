@@ -5,7 +5,8 @@ import { User, Question, ActiveQuestionnaire, QuestionTemplate, AnswerSession, A
 import { Option } from '../../models/questionare';
 import { ErrorHandlingService } from '../error-handling.service';
 import { JWTTokenService } from '../auth/jwt-token.service';
-import { LogFileType, MockDbService } from '../mock/mock-db.service';
+import { MockDbService } from '../mock/mock-db.service';
+import { LogFileType } from '../../models/log-models';
 import { AuthService } from '../auth/auth.service';
 import { LogEntry } from '../../models/log-models';
 
@@ -53,54 +54,67 @@ export class MockDataService {
   
   
 
-  getLogFileTypes(): Observable<string[]> {
-    const logFileTypes = Object.keys(this.mockDbService.mockData.mockLogs);
-    return of(logFileTypes);
+ // Updated getLogFileTypes() method
+ getLogFileTypes(): Observable<LogFileType> {
+  const logFileTypes: LogFileType = {};
+  const mockLogs = this.mockDbService.mockData.mockLogs;
+
+  for (const logName in mockLogs) {
+    if (mockLogs.hasOwnProperty(logName)) {
+      logFileTypes[logName] = { amount: mockLogs[logName].length };
+    }
   }
 
+  return of(logFileTypes).pipe(delay(250)); // Simulate delay
+}
 
-  getLogs(logSeverity: string, logFileType: LogFileType, startLine: number, lineCount: number, reverse: boolean): Observable<LogEntry[]> {
-    const logs: LogEntry[] = this.mockDbService.mockData.mockLogs[logFileType];
-    console.log(this.mockDbService.mockData.mockLogs[logFileType])
-    
-    if (!logs) {
-      console.error(`Log file type '${logFileType}' not found`);
+// Updated getLogs() method
+getLogs(
+  logSeverity: string,
+  logFileType: string,
+  lineCount: number | null,
+  reverse: boolean
+): Observable<LogEntry[]> {
+  const logs: LogEntry[] = this.mockDbService.mockData.mockLogs[logFileType];
+
+  if (!logs) {
+    console.error(`Log file type '${logFileType}' not found`);
+    return of([]);
+  }
+
+  // Filter logs by severity if provided
+  let filteredLogs = logs;
+
+  if (logSeverity) {
+    const severityLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+    const severityIndex = severityLevels.indexOf(logSeverity.toUpperCase());
+
+    if (severityIndex === -1) {
+      console.error(`Invalid severity level '${logSeverity}'`);
       return of([]);
     }
-  
-    // Filter logs by severity if provided
-    let filteredLogs = logs;
-  
-    if (logSeverity) {
-      const severityLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"];
-      const severityIndex = severityLevels.indexOf(logSeverity.toUpperCase());
-  
-      if (severityIndex === -1) {
-        console.error(`Invalid severity level '${logSeverity}'`);
-        return of([]);
-      }
-  
-      filteredLogs = logs.filter(log => {
-        const logLevelIndex = severityLevels.indexOf(log.severity);
-        return logLevelIndex >= severityIndex;
-      });
-    }
-  
-    // Adjust indices for zero-based array
-    const adjustedStartIndex = Math.max(0, startLine - 1);
-    const adjustedEndIndex = Math.min(adjustedStartIndex + lineCount, filteredLogs.length);
-  
-    // Slice the logs based on startLine and lineCount
-    let selectedLogs = filteredLogs.slice(adjustedStartIndex, adjustedEndIndex);
-  
-    // Reverse the logs if needed
-    if (reverse) {
-      selectedLogs = selectedLogs.reverse();
-    }
-  
-    return of(selectedLogs).pipe(delay(250), catchError(this.handleError('getLogs')));
+
+    filteredLogs = logs.filter((log) => {
+      const logLevelIndex = severityLevels.indexOf(log.severity);
+      return logLevelIndex >= severityIndex;
+    });
   }
-  
+
+  // Reverse the logs if needed
+  if (reverse) {
+    filteredLogs = filteredLogs.slice().reverse();
+  }
+
+  // Handle lineCount being null or zero (load all lines)
+  let selectedLogs = filteredLogs;
+  if (lineCount && lineCount > 0) {
+    selectedLogs = filteredLogs.slice(0, lineCount);
+  }
+  return of(selectedLogs).pipe(
+    delay(250), // Simulate delay
+    catchError(this.handleError('getLogs'))
+  );
+}
 
   getSettings(): Observable<any>  {
     const settings = this.mockDbService.mockData.mockAppSettings.settings

@@ -4,7 +4,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { ActiveQuestionnaire, Answer, AnswerSession, Question, QuestionDetails, QuestionTemplate, User } from '../../models/questionare';
 import { environment } from '../../../environments/environment';
-import { LogEntry } from '../../models/log-models';
+import { LogEntry, LogFileType } from '../../models/log-models';
 
 @Injectable({
   providedIn: 'root'
@@ -21,26 +21,30 @@ export class DataService {
     };
   }
 
-  getLogFileTypes(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiUrl}/logs/get-available`).pipe(
-      catchError(this.handleError<string[]>('getLogFileTypes', []))
-    );
+  getLogFileTypes(): Observable<LogFileType> {
+    return this.http
+      .get<LogFileType>(`${this.apiUrl}/logs/get-available`)
+      .pipe(catchError(this.handleError<LogFileType>('getLogFileTypes', {})));
   }
 
-  getLogs(logSeverity: string, logFileType: string, startLine: number, lineCount: number, reverse: boolean): Observable<LogEntry[]> {
-    // Create HttpParams object to build query parameters
+  getLogs(
+    logSeverity: string,
+    logFileType: string,
+    lineCount: number | null,
+    reverse: boolean
+  ): Observable<LogEntry[]> {
     let params = new HttpParams()
-      .set('log_name', logFileType)  // log_name maps to logFileType
-      .set('start_line', startLine.toString())  // start_line maps to startLine
-      .set('amount', lineCount.toString())  // amount maps to lineCount
-      .set('order', reverse ? 'desc' : 'asc')  // order is "desc" for reverse, "asc" otherwise
-      .set('log_severity', logSeverity);  // Set log severity level
-  
-    // Use HttpParams in the GET request and expect the API to return LogEntry[]
-    return this.http.get<LogEntry[]>(`${this.apiUrl}/logs/get`, { params })
-      .pipe(
-        catchError(this.handleError<LogEntry[]>('getLogs', []))  // Handle errors and return an empty array if needed
-      );
+      .set('logName', logFileType)
+      .set('order', reverse ? 'desc' : 'asc')
+      .set('severity', logSeverity);
+
+    if (lineCount !== null && lineCount > 0) {
+      params = params.set('amount', lineCount.toString());
+    }
+    
+    return this.http
+      .get<LogEntry[]>(`${this.apiUrl}/logs/get`, { params })
+      .pipe(catchError(this.handleError<LogEntry[]>('getLogs', [])));
   }
   
   

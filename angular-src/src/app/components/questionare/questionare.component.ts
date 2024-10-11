@@ -70,10 +70,9 @@ export class QuestionareComponent implements OnInit {
       }
     });
   }
-
   private initializeQuestionsAndMetadata(questionnaire: ActiveQuestionnaire): void {
     this.activeQuestionnaire = questionnaire;
-    this.dataService.getQuestionsForUser(questionnaire.template.templateId).pipe(
+    this.dataService.getQuestionsForUser(questionnaire.template.id).pipe(
       catchError(error => {
         this.errorMessage = 'Failed to load questions';
         this.isLoading = false;
