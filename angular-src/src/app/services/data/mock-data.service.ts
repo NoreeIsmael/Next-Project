@@ -5,7 +5,8 @@ import { User, Question, ActiveQuestionnaire, QuestionTemplate, AnswerSession, A
 import { Option } from '../../models/questionare';
 import { ErrorHandlingService } from '../error-handling.service';
 import { JWTTokenService } from '../auth/jwt-token.service';
-import { LogFileType, MockDbService } from '../mock/mock-db.service';
+import { MockDbService } from '../mock/mock-db.service';
+import { LogFileType } from '../../models/log-models';
 import { AuthService } from '../auth/auth.service';
 import { LogEntry } from '../../models/log-models';
 
@@ -24,87 +25,96 @@ export class MockDataService {
     this.mockDbService.loadInitialMockData();
   }
 
-  checkForActiveQuestionnaire(id: string, role: string): Observable<{ hasActive: boolean, urlString: string }> {
-    if (!id || !role) {
-      return of({ hasActive: false, urlString: '' });
+  checkForActiveQuestionnaires(userId: string): Observable<string | null> {
+    // Check if userId is provided
+    if (!userId) {
+      return of(null);
     }
-    
+  
     const mockActiveQuestionnaires = this.mockDbService.mockData.mockActiveQuestionnaire;
   
-    let activeQuestionnaire;
-  
-    // Check for active questionnaires based on the user's role
-    if (role === 'student') {
-      activeQuestionnaire = mockActiveQuestionnaires.find(
-        (questionnaire: ActiveQuestionnaire) =>
-          questionnaire.student.id === id && !questionnaire.isStudentFinished
+    // Find an active questionnaire for the user, regardless of role (student or teacher)
+    const activeQuestionnaire = mockActiveQuestionnaires.find((questionnaire: ActiveQuestionnaire) => {
+      return (
+        (questionnaire.student.id === userId && !questionnaire.isStudentFinished) ||
+        (questionnaire.teacher.id === userId && !questionnaire.isTeacherFinished)
       );
-    } else if (role === 'teacher') {
-      activeQuestionnaire = mockActiveQuestionnaires.find(
-        (questionnaire: ActiveQuestionnaire) =>
-          questionnaire.teacher.id === id && !questionnaire.isTeacherFinished
-      );
-    }
+    });
   
-    // Return result based on whether an active questionnaire was found
+    // Return the ID of the active questionnaire if found, or null otherwise
     if (activeQuestionnaire) {
-      return of({ hasActive: true, urlString: `${activeQuestionnaire.id}` });
+      return of(activeQuestionnaire.id).pipe(delay(250)); // Simulate delay for mock data
     }
   
-    return of({ hasActive: false, urlString: '' });
+    // Return null if no active questionnaire is found
+    return of(null).pipe(delay(250));
   }
   
   
   
+  
 
-  getLogFileTypes(): Observable<string[]> {
-    const logFileTypes = Object.keys(this.mockDbService.mockData.mockLogs);
-    return of(logFileTypes);
+ // Updated getLogFileTypes() method
+ getLogFileTypes(): Observable<LogFileType> {
+  const logFileTypes: LogFileType = {};
+  const mockLogs = this.mockDbService.mockData.mockLogs;
+
+  for (const logName in mockLogs) {
+    if (mockLogs.hasOwnProperty(logName)) {
+      logFileTypes[logName] = { amount: mockLogs[logName].length };
+    }
   }
 
+  return of(logFileTypes).pipe(delay(250)); // Simulate delay
+}
 
-  getLogs(logSeverity: string, logFileType: LogFileType, startLine: number, lineCount: number, reverse: boolean): Observable<LogEntry[]> {
-    const logs: LogEntry[] = this.mockDbService.mockData.mockLogs[logFileType];
-    console.log(this.mockDbService.mockData.mockLogs[logFileType])
-    
-    if (!logs) {
-      console.error(`Log file type '${logFileType}' not found`);
+// Updated getLogs() method
+getLogs(
+  logSeverity: string,
+  logFileType: string,
+  lineCount: number | null,
+  reverse: boolean
+): Observable<LogEntry[]> {
+  const logs: LogEntry[] = this.mockDbService.mockData.mockLogs[logFileType];
+
+  if (!logs) {
+    console.error(`Log file type '${logFileType}' not found`);
+    return of([]);
+  }
+
+  // Filter logs by severity if provided
+  let filteredLogs = logs;
+
+  if (logSeverity) {
+    const severityLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+    const severityIndex = severityLevels.indexOf(logSeverity.toUpperCase());
+
+    if (severityIndex === -1) {
+      console.error(`Invalid severity level '${logSeverity}'`);
       return of([]);
     }
-  
-    // Filter logs by severity if provided
-    let filteredLogs = logs;
-  
-    if (logSeverity) {
-      const severityLevels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"];
-      const severityIndex = severityLevels.indexOf(logSeverity.toUpperCase());
-  
-      if (severityIndex === -1) {
-        console.error(`Invalid severity level '${logSeverity}'`);
-        return of([]);
-      }
-  
-      filteredLogs = logs.filter(log => {
-        const logLevelIndex = severityLevels.indexOf(log.severity);
-        return logLevelIndex >= severityIndex;
-      });
-    }
-  
-    // Adjust indices for zero-based array
-    const adjustedStartIndex = Math.max(0, startLine - 1);
-    const adjustedEndIndex = Math.min(adjustedStartIndex + lineCount, filteredLogs.length);
-  
-    // Slice the logs based on startLine and lineCount
-    let selectedLogs = filteredLogs.slice(adjustedStartIndex, adjustedEndIndex);
-  
-    // Reverse the logs if needed
-    if (reverse) {
-      selectedLogs = selectedLogs.reverse();
-    }
-  
-    return of(selectedLogs).pipe(delay(250), catchError(this.handleError('getLogs')));
+
+    filteredLogs = logs.filter((log) => {
+      const logLevelIndex = severityLevels.indexOf(log.severity);
+      return logLevelIndex >= severityIndex;
+    });
   }
-  
+
+  // Reverse the logs if needed
+  if (reverse) {
+    filteredLogs = filteredLogs.slice().reverse();
+  }
+
+  // Handle lineCount being null or zero (load all lines)
+  let selectedLogs = filteredLogs;
+  if (lineCount && lineCount > 0) {
+    selectedLogs = filteredLogs.slice(0, lineCount);
+  }
+  return of(selectedLogs).pipe(
+    delay(250), // Simulate delay
+    catchError(this.handleError('getLogs'))
+  );
+}
 
   getSettings(): Observable<any>  {
     const settings = this.mockDbService.mockData.mockAppSettings.settings
@@ -199,15 +209,16 @@ export class MockDataService {
     // Helper function to process answer labels
     const getOptionLabel = (answer: Answer | undefined, question: Question): string => {
       if (!answer) return 'No answer provided';
-      const selectedOptionId = answer.selectedOptionId;
-      if (selectedOptionId !== undefined && selectedOptionId !== null) {
-        const optionType = question.options.find((opt: any) => opt.id === selectedOptionId);
+    
+      if (answer.selectedOptionId !== undefined && answer.selectedOptionId !== null) {
+        const optionType = question.options.find((opt: any) => opt.id === answer.selectedOptionId);
         return optionType ? optionType.label : 'No label found';
-      } else if (answer.customAnswer) {
+      } else if (answer.customAnswer !== undefined && answer.customAnswer !== null) {
         return answer.customAnswer;
       }
       return 'No answer provided';
     };
+    
   
     // Step 1: Find the active questionnaire and answer session
     const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(
@@ -484,7 +495,25 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
       catchError(this.handleError('getDashboardData'))
     );
   }
-
+  getActiveQuestionnaireById(id: string): Observable<ActiveQuestionnaire | null> {
+    // Check if the provided ID is valid
+    if (!id) {
+      return of(null);
+    }
+  
+    // Search for the active questionnaire by its ID in the mock database
+    const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(
+      (questionnaire: ActiveQuestionnaire) => questionnaire.id === id
+    );
+  
+    // Return the active questionnaire if found, or null otherwise
+    if (activeQuestionnaire) {
+      return of(activeQuestionnaire).pipe(delay(250)); // Simulate delay for mock data
+    } else {
+      // Return null if no active questionnaire is found
+      return of(null).pipe(delay(250));
+    }
+  }
 
 
   getActiveQuestionnaireByUserId(id: string): Observable<ActiveQuestionnaire | null> {
