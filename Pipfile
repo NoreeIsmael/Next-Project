@@ -15,6 +15,7 @@ aiosqlite = "*"
 python-multipart = "*"
 cachetools = "*"
 uvicorn = {extras = ["standard"], version = "*"}
+alembic = "*"
 
 [dev-packages]
 types-python-jose = "*"
