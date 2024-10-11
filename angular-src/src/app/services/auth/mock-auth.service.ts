@@ -94,7 +94,7 @@ export class MockAuthService {
   }
 
   checkServerConnection(): Observable<boolean> {
-    return of(false)
+    return of(true)
   }
 
 
