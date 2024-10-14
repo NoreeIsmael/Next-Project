@@ -164,7 +164,9 @@ class QuestionTemplate(Base):
     )
     title: Mapped[str] = mapped_column(type_=String, index=True)
     description: Mapped[str] = mapped_column(type_=String, index=False)
-    created_at: Mapped[datetime] = mapped_column(type_=DateTime, index=False)
+    created_at: Mapped[datetime] = mapped_column(
+        type_=DateTime(timezone=True), index=False, server_default=func.now()
+    )
 
     questions: Mapped[List["Question"]] = relationship(
         argument="Question", back_populates="template", cascade="all, delete-orphan"
