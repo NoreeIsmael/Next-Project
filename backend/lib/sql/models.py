@@ -10,11 +10,19 @@ from sqlalchemy import (
     exists,
     select,
     event,
+    Connection,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship, mapped_column, Mapped, Session
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    relationship,
+    mapped_column,
+    Mapped,
+    Session,
+    Mapper,
+)
 from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
-from typing import List, Optional, LiteralString
+from typing import List, Optional, LiteralString, Type
 from random import choice
 from string import ascii_letters, digits
 
@@ -184,7 +192,9 @@ class ActiveQuestionnaire(Base):
 
 
 @event.listens_for(target=ActiveQuestionnaire, identifier="after_delete")
-def delete_user_if_no_questionnaires(mapper, connection, target) -> None:
+def delete_user_if_no_questionnaires(
+    mapper: Mapper, connection: Connection, target: Type[ActiveQuestionnaire]
+) -> None:
     """
     Event listener to delete a user if they have no remaining questionnaires.
 
