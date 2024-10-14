@@ -4,7 +4,7 @@ from backend.lib._logger import LogHelper
 
 db_logger: Logger = LogHelper.create_logger(
     logger_name="sqlalchemy",
-    log_file="backend/logs/sql.log",
+    log_file="backend/logs/sqlalchemy.log",
     file_log_level=DEBUG,
     stream_log_level=WARNING,
     ignore_existing=True,
