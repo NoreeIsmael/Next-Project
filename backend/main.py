@@ -1,4 +1,3 @@
-from logging import DEBUG, INFO, Logger
 from typing import Literal
 from fastapi import (
     FastAPI,
@@ -23,7 +22,7 @@ from alembic.config import Config
 from alembic.util import CommandError
 from pathlib import Path
 
-from backend.lib._logger import LogHelper
+from backend import logger
 from backend.lib.api.auth.routes import router as auth_router
 from backend.lib.api.questionnaire.routes import router as questionnaire_router
 from backend.lib.api.settings.routes import router as settings_router
@@ -43,12 +42,6 @@ from backend.lib.sql import database_migration_logger
 # noqa: W291 (trailing whitespace) prevents Flake8 from complaining about trailing whitespace. Used for docstrings.
 # fmt: off/on (black formatting) disables/enables Black formatting for the code block. Used for docstrings.
 
-logger: Logger = LogHelper.create_logger(
-    logger_name="backend API (main)",
-    log_file="backend/logs/backend.log",
-    file_log_level=DEBUG,
-    stream_log_level=INFO,
-)
 
 # Drop and recreate the database tables.
 Base.metadata.create_all(bind=engine, checkfirst=True)
