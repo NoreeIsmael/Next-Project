@@ -9,7 +9,7 @@ repos:
 
       - id: alembic-check
         name: Alembic Check
-        entry: pipenv run alembic check
+        entry: pipenv run alembic --config ./backend/lib/alembic/alembic_manual.ini check
         language: system
         pass_filenames: false
         stages: [pre-commit]

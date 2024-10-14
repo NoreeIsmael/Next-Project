@@ -5,6 +5,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from pathlib import Path
+
 from backend.lib.sql.models import Base
 
 # this is the Alembic Config object, which provides
@@ -14,7 +16,17 @@ config = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    config_file_name = Path(config.config_file_name)
+    alembic_ini = Path("backend", "lib", "alembic", "alembic_manual.ini")
+
+    if config_file_name == alembic_ini:
+        disable_existing_loggers = True
+    else:
+        disable_existing_loggers = False
+
+    fileConfig(
+        config.config_file_name, disable_existing_loggers=disable_existing_loggers
+    )
 
 # add your model's MetaData object here
 # for 'autogenerate' support
