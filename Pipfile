@@ -16,6 +16,7 @@ python-multipart = "*"
 cachetools = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 alembic = "*"
+black = "*"
 
 [dev-packages]
 types-python-jose = "*"
