@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, delay, map, of, throwError } from 'rxjs';
-import { User, Question, ActiveQuestionnaire, QuestionTemplate, AnswerSession, Answer, QuestionDetails } from '../../models/questionare';
+import { User, Question, ActiveQuestionnaire, QuestionTemplate, AnswerSession, Answer, AnswerDetails } from '../../models/questionare';
 import { Option } from '../../models/questionare';
 import { ErrorHandlingService } from '../error-handling.service';
 import { JWTTokenService } from '../auth/jwt-token.service';
@@ -131,64 +131,115 @@ getLogs(
     return of({ success: true });
   }
 
-  submitUserAnswers(role: string, answers: Answer[], questionnaireId: string | null): Observable<void> {
-    // Step 1: Check if the user's role matches the role passed as an argument
-    const userRole = this.getRoleFromToken();
-    if (role !== userRole) {
-      return throwError(() => new Error('Unauthorized: Role mismatch.'));
-    }
-  
-    // Step 2: Find the active questionnaire by its ID
+  submitUserAnswers(userId: string, answers: Answer[], questionnaireId: string): Observable<void> {
     const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(aq => aq.id === questionnaireId);
     if (!activeQuestionnaire) {
-      return this.errorHandlingService.handleError(new Error('Active questionnaire not found'), 'submitData');
+      return throwError(() => new Error('Active questionnaire not found.'));
     }
   
-    // Step 3: Find or create an answer session for the questionnaire
-    let answerSession = this.mockDbService.mockData.mockAnswers.find(as => as.questionnaireId === questionnaireId);
+    let answerSession = this.mockDbService.mockData.mockAnswerSessions.find(as => as.questionnaireId === questionnaireId);
   
     if (!answerSession) {
-      // Fetch user data by ID to be used in the new session
       const studentUser = this.getUserById(activeQuestionnaire.student.id);
       const teacherUser = this.getUserById(activeQuestionnaire.teacher.id);
-  
       if (!studentUser || !teacherUser) {
         return throwError(() => new Error('Student or teacher user not found.'));
       }
   
-      // Create a new AnswerSession if none exists
-      const newAnswerSession: AnswerSession = {
+      // Create new AnswerSession
+      answerSession = {
         questionnaireId: questionnaireId!,
-        studentAnswers: { user: studentUser, answers: [], answeredAt: new Date() },
-        teacherAnswers: { user: teacherUser, answers: [], answeredAt: new Date() },
+        users: { student: studentUser, teacher: teacherUser },
+        answers: [],
+        studentAnsweredAt: undefined,
+        teacherAnsweredAt: undefined,
       };
-      this.mockDbService.mockData.mockAnswers.push(newAnswerSession);
-      answerSession = newAnswerSession; // Assign the newly created session
+      this.mockDbService.mockData.mockAnswerSessions.push(answerSession);
     }
   
-    // Step 4: Save the answers based on the user's role
-    if (role === 'student') {
-      // Update student answers
-      answerSession.studentAnswers.answers = answers;
-      answerSession.studentAnswers.answeredAt = new Date();
-    } else if (role === 'teacher') {
-      // Update teacher answers
-      answerSession.teacherAnswers.answers = answers;
-      answerSession.teacherAnswers.answeredAt = new Date();
-    } else {
-      return throwError(() => new Error('Unknown role.'));
-    }
-
-    if (role === 'student') {
+    answers.forEach(newAnswer => {
+      const templateId = activeQuestionnaire.template.id;
+      const existingAnswer = answerSession!.answers.find(a => a.questionId === newAnswer.questionId);
+      const answerContent = newAnswer.customAnswer || this.getOptionLabelById(newAnswer.questionId, newAnswer.selectedOptionId!, templateId);
+  
+      if (existingAnswer) {
+        if (userId === activeQuestionnaire.student.id) {
+          existingAnswer.studentAnswer = answerContent;
+          answerSession!.studentAnsweredAt = new Date();
+        } else if (userId === activeQuestionnaire.teacher.id) {
+          existingAnswer.teacherAnswer = answerContent;
+          answerSession!.teacherAnsweredAt = new Date();
+        } else {
+          throw new Error('Unknown user ID.');
+        }
+      } else {
+        answerSession!.answers.push({
+          questionId: newAnswer.questionId,
+          questionTitle: this.getQuestionTitleById(newAnswer.questionId, templateId),
+          studentAnswer: userId === activeQuestionnaire.student.id ? answerContent : '',
+          teacherAnswer: userId === activeQuestionnaire.teacher.id ? answerContent : '',
+        });
+      }
+    });
+    // Set the completion status for the user
+    if (userId === activeQuestionnaire.student.id) {
       activeQuestionnaire.isStudentFinished = true;
-    } else if (role === 'teacher') {
+      answerSession!.studentAnsweredAt = new Date();
+    } else if (userId === activeQuestionnaire.teacher.id) {
       activeQuestionnaire.isTeacherFinished = true;
+      answerSession!.teacherAnsweredAt = new Date();
     }
   
     this.saveData();
-    return of(undefined).pipe(delay(250), catchError(this.handleError('submitUserAnswers')));
-
+    return of(undefined).pipe(delay(250));
   }
+  
+  
+  private getQuestionTitleById(questionId: number, templateId: string): string {
+    // Find the template by templateId first to ensure the search is local to that template
+    const template = this.mockDbService.mockData.mockQuestionTemplates.find(t => t.id === templateId);
+  
+    if (!template) {
+      throw new Error(`Template with ID ${templateId} not found`);
+    }
+  
+    // Now, search for the question in that specific template
+    const question = template.questions.find(q => q.id === questionId);
+  
+    if (!question) {
+      throw new Error(`Question with ID ${questionId} not found in template ${templateId}`);
+    }
+  
+    return question.title; // Return the title of the question
+  }
+  
+
+  private getOptionLabelById(questionId: number, selectedOptionId: number, templateId: string): string {
+    // Find the relevant template to ensure the search is scoped correctly
+    const template = this.mockDbService.mockData.mockQuestionTemplates.find(t => t.id === templateId);
+  
+    if (!template) {
+      throw new Error(`Template with ID ${templateId} not found`);
+    }
+  
+    // Find the question in that specific template
+    const question = template.questions.find(q => q.id === questionId);
+  
+    if (!question) {
+      throw new Error(`Question with ID ${questionId} not found in template ${templateId}`);
+    }
+  
+    // Find the option by selectedOptionId within the question's options array
+    const option = question.options.find(opt => opt.id === selectedOptionId);
+  
+    if (!option) {
+      throw new Error(`Option with ID ${selectedOptionId} not found for question ID ${questionId}`);
+    }
+  
+    return option.label || String(option.value);  // Return the label, or the value as a fallback
+  }
+  
+
 
   // Handle pagination for users or templates
   private paginate<T>(items: T[], page: number, limit: number): T[] {
@@ -204,73 +255,31 @@ getLogs(
     return user ? user : null;
   }
 
-  // can only be used by teachers for now
-  getResults(activeQuestionnaireId: string): Observable<{ answerSession: AnswerSession, questionDetails: QuestionDetails[] }> {
-    // Helper function to process answer labels
-    const getOptionLabel = (answer: Answer | undefined, question: Question): string => {
-      if (!answer) return 'No answer provided';
-    
-      if (answer.selectedOptionId !== undefined && answer.selectedOptionId !== null) {
-        const optionType = question.options.find((opt: any) => opt.id === answer.selectedOptionId);
-        return optionType ? optionType.label : 'No label found';
-      } else if (answer.customAnswer !== undefined && answer.customAnswer !== null) {
-        return answer.customAnswer;
-      }
-      return 'No answer provided';
-    };
-    
-  
-    // Step 1: Find the active questionnaire and answer session
+  getResults(activeQuestionnaireId: string): Observable<AnswerSession> {
+    // Step 1: Find the active questionnaire
     const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(
       (aq: ActiveQuestionnaire) => aq.id === activeQuestionnaireId
     );
-    if (!activeQuestionnaire) return throwError(() => new Error('Active questionnaire not found'));
+    if (!activeQuestionnaire) {
+      return throwError(() => new Error('Active questionnaire not found'));
+    }
   
-    const answerSession = this.mockDbService.mockData.mockAnswers?.find(
+    // Step 2: Find the answer session for this questionnaire
+    const answerSession = this.mockDbService.mockData.mockAnswerSessions?.find(
       (session: AnswerSession) => session.questionnaireId === activeQuestionnaireId
     );
-    if (!answerSession) return throwError(() => new Error('Answer session not found'));
+    if (!answerSession) {
+      return throwError(() => new Error('Answer session not found'));
+    }
   
-    // Step 2: Ensure the user is a teacher
-    const userId = this.authService.getUserId();
-    const user = this.mockDbService.mockData.mockUsers.find(u => u.id === userId);
-    if (!user || user.role !== 'teacher') return throwError(() => new Error('User is not authorized as a teacher'));
-  
-    // Step 3: Find the corresponding question template
-    const template = this.mockDbService.mockData.mockQuestionTemplates.find(
-      qt => qt.id === activeQuestionnaire.template.id
-    );
-    if (!template) return throwError(() => new Error('Question template not found'));
-  
-    // Step 4: Process student and teacher answers
-    const questionDetails: QuestionDetails[] = answerSession.studentAnswers.answers.map((studentAnswer, index) => {
-      const questionId = studentAnswer.questionId;
-      const question = template.questions.find(q => q.id === questionId);
-  
-      if (!question) {
-        return {
-          questionId: questionId,  // Include questionId here
-          questionTitle: 'Question not found',
-          studentAnswer: 'Question not found',
-          teacherAnswer: 'Question not found',
-        };
-      }
-  
-      const teacherAnswer = answerSession.teacherAnswers.answers[index];
-      return {
-        questionId: questionId,  // Include questionId here
-        questionTitle: question.title,  // Use correct property questionTitle
-        studentAnswer: getOptionLabel(studentAnswer, question), // Process student answer
-        teacherAnswer: getOptionLabel(teacherAnswer, question), // Process teacher answer
-      };
-    });
-  
-    // Return the answer session and question details
-    return of({ answerSession, questionDetails }).pipe(
+    // Step 3: Return the answer session from the mock data as is
+    return of(answerSession).pipe(
       delay(500), // Simulate async behavior with a delay
       catchError((error) => throwError(() => new Error(error.message)))
     );
   }
+  
+  
   
   
 

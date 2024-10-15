@@ -18,7 +18,7 @@ export class MockDbService {
 
   private predefinedMockData: {
     mockUsers: User[],
-    mockAnswers: AnswerSession[],
+    mockAnswerSessions: AnswerSession[],
     mockActiveQuestionnaire: ActiveQuestionnaire[],
     mockQuestionTemplates: QuestionTemplate[],
     mockAppSettings: {
@@ -33,31 +33,38 @@ export class MockDbService {
       { id: "3", userName: "AS", fullName: "Alexander Svensson", role: "student" },
       { id: "4", userName: "JW", fullName: "Johan Wallin", role: "student" }
     ],
-    mockAnswers: [
+    mockAnswerSessions: [
       {
         questionnaireId: "efgh",
-        studentAnswers: {
-          user: { id: "2", userName: "NN", fullName: "Nicklas Nilsson", role: "student" },
-          answers: [
-            { questionId: 1, selectedOptionId: 1 },
-            { questionId: 2, selectedOptionId: 2 },
-            { questionId: 3, customAnswer: 'More interactive activities would be great!' },
-            { questionId: 4, selectedOptionId: 2 },
-          ],
-          answeredAt: new Date()
+        users: {
+          student: { id: "2", userName: "NN", fullName: "Nicklas Nilsson", role: "student" },
+          teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" }
         },
-        teacherAnswers: {
-          user: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" },
-          answers: [
-            { questionId: 1, selectedOptionId: 1 },
-            { questionId: 2, selectedOptionId: 1 },
-            { questionId: 3, customAnswer: 'Better resources and tools for students are needed.' },
-            { questionId: 4, selectedOptionId: 1 },
-          ],
-          answeredAt: new Date()
-        }
+        answers: [
+          { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: 'Understands tasks', teacherAnswer: 'Correct' },
+          { questionId: 2, questionTitle: 'Kreativitet og selvstændighed', studentAnswer: 'Shows initiative', teacherAnswer: 'Needs improvement' },
+          { questionId: 3, questionTitle: 'Arbejdsindsats', studentAnswer: 'Good effort', teacherAnswer: 'Above average' },
+          { questionId: 4, questionTitle: 'Orden og omhyggelighed', studentAnswer: 'Organized', teacherAnswer: 'Good' }
+        ],
+        studentAnsweredAt: new Date('2024-10-14T08:30:00.000Z'),
+        teacherAnsweredAt: new Date('2024-10-14T09:00:00.000Z')
+      },
+      {
+        questionnaireId: "ijkl",
+        users: {
+          student: { id: "3", userName: "AS", fullName: "Alexander Svensson", role: "student" },
+          teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" }
+        },
+        answers: [
+          { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: '', teacherAnswer: 'Not answered yet' },
+          { questionId: 2, questionTitle: 'Kreativitet og selvstændighed', studentAnswer: '', teacherAnswer: '' },
+          { questionId: 3, questionTitle: 'Arbejdsindsats', studentAnswer: '', teacherAnswer: '' },
+          { questionId: 4, questionTitle: 'Orden og omhyggelighed', studentAnswer: '', teacherAnswer: '' }
+        ],
+        studentAnsweredAt: new Date('2024-10-14T08:30:00.000Z'),
+        teacherAnsweredAt: new Date('2024-10-14T08:30:00.000Z')
       }
-    ],
+    ],    
     mockActiveQuestionnaire: [
       {
         id: "efgh",

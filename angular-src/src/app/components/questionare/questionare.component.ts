@@ -137,10 +137,11 @@ export class QuestionareComponent implements OnInit {
 
   submit(): void {
     if (this.activeQuestionnaire) {
-      const role = this.authService.getUserRole();
-      if (role) {
+      const userId = this.authService.getUserId();
+      if (userId) {
         const answers = this.createAnswers();
-        this.dataService.submitUserAnswers(role, answers, this.activeQuestionnaire.id).pipe(
+        console.log(userId,this.activeQuestionnaire.id, answers)
+        this.dataService.submitUserAnswers(userId, answers, this.activeQuestionnaire.id).pipe(
           catchError(error => {
             this.errorMessage = 'Failed to submit answers';
             return of(null);
@@ -149,13 +150,12 @@ export class QuestionareComponent implements OnInit {
           this.router.navigate(['/']);
         });
       } else {
-        this.errorMessage = 'Error submitting answers: Invalid role';
+        this.errorMessage = 'Error submitting answers: Invalid user ID';
       }
     } else {
       this.errorMessage = 'No active questionnaire found';
     }
   }
-
   private createAnswers(): Answer[] {
     return this.questions.map((question) => {
       if (question.selectedOption !== undefined) {

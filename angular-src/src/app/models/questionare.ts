@@ -68,23 +68,22 @@ export interface Answer {
   customAnswer?: string;
 }
 
-export interface UserAnswerSheet {
-  user: User; // Reference to the User object instead of just ID
-  answers: Answer[];
-  answeredAt: Date;
-}
-
-export interface AnswerSession {
-  questionnaireId: string;
-  studentAnswers: UserAnswerSheet;
-  teacherAnswers: UserAnswerSheet;
-}
-
-
-// Used to display details of the question.
-export interface QuestionDetails {
+// Used to display details of the answer and the question.
+export interface AnswerDetails {
   questionId: number;
   questionTitle: string;
   studentAnswer: string;
   teacherAnswer: string;
+}
+
+
+export interface AnswerSession {
+  questionnaireId: string;
+  users: {
+    student: User;
+    teacher: User;
+  };
+  answers: AnswerDetails[];  // An array of AnswerDetails
+  studentAnsweredAt?: Date;
+  teacherAnsweredAt?: Date;
 }

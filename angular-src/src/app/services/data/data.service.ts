@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { ActiveQuestionnaire, Answer, AnswerSession, Question, QuestionDetails, QuestionTemplate, User } from '../../models/questionare';
+import { ActiveQuestionnaire, Answer, AnswerSession, Question, AnswerDetails, QuestionTemplate, User } from '../../models/questionare';
 import { environment } from '../../../environments/environment';
 import { LogEntry, LogFileType } from '../../models/log-models';
 
@@ -62,13 +62,14 @@ export class DataService {
 
 
 
-  getResults(activeQuestionnaireId: string): Observable<{ answerSession: AnswerSession, questionDetails: QuestionDetails[] }> {
+  getResults(activeQuestionnaireId: string): Observable<AnswerSession> {
     const url = `${this.apiUrl}/results/${activeQuestionnaireId}`;
-    return this.http.get<{ answerSession: AnswerSession, questionDetails: QuestionDetails[] }>(url)
+    return this.http.get<AnswerSession>(url)
       .pipe(
-        catchError(this.handleError<{ answerSession: AnswerSession, questionDetails: QuestionDetails[] }>('getResults'))
+        catchError(this.handleError<AnswerSession>('getResults'))
       );
   }
+  
 
   // Active Questionnaire Methods
   createActiveQuestionnaire(student: User, teacher: User, id: string): Observable<any> {
@@ -195,13 +196,13 @@ export class DataService {
   }
 
   // Submit user answers
-  submitUserAnswers(role: string, answers: Answer[], questionnaireId: string | null): Observable<void> {
-    const url = `${this.apiUrl}/questionnaire/submit/${questionnaireId}`;
-    const body = { role, answers };
+  submitUserAnswers(userId: string, answers: Answer[], questionnaireId: string): Observable<void> {
+    const url = `${this.apiUrl}/v1/questionnaire/answers/submit`;
+    const body = { userId, questionnaireId, answers };
     return this.http.post<void>(url, body)
-      .pipe(
-        catchError(this.handleError<void>('submitUserAnswers'))
-      );
+    .pipe(
+      catchError(this.handleError<void>('submitUserAnswers'))
+    );
   }
 
   // Validate user access to a questionnaire
