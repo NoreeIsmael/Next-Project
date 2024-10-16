@@ -25,20 +25,21 @@ export class MockDbService {
       settings: any;
       metadata: any;
     },
-    mockLogs: MockLogs 
+    mockLogs: MockLogs
   } = {
     mockUsers: [
-      { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" },
-      { id: "2", userName: "NN", fullName: "Nicklas Nilsson", role: "student" },
-      { id: "3", userName: "AS", fullName: "Alexander Svensson", role: "student" },
-      { id: "4", userName: "JW", fullName: "Johan Wallin", role: "student" }
+      { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" },
+      { id: "2", userName: "NH", fullName: "Nicklas Helsberg", role: "student" },
+      { id: "3", userName: "MF", fullName: "Max Felding", role: "student" },
+      { id: "4", userName: "AMT", fullName: "Alexander Thamdrup", role: "student" },
+      { id: "5", userName: "sysadmin", fullName: "Admin", role: "admin" }
     ],
     mockAnswerSessions: [
       {
         questionnaireId: "efgh",
         users: {
-          student: { id: "2", userName: "NN", fullName: "Nicklas Nilsson", role: "student" },
-          teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" }
+          student: { id: "2", userName: "NH", fullName: "Nicklas Helsberg", role: "student" },
+          teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" }
         },
         answers: [
           { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: 'Understands tasks', teacherAnswer: 'Correct' },
@@ -52,8 +53,8 @@ export class MockDbService {
       {
         questionnaireId: "ijkl",
         users: {
-          student: { id: "3", userName: "AS", fullName: "Alexander Svensson", role: "student" },
-          teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" }
+          student: { id: "4", userName: "AMT", fullName: "Alexander Thamdrup", role: "student" },
+          teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" }
         },
         answers: [
           { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: '', teacherAnswer: 'Not answered yet' },
@@ -64,12 +65,12 @@ export class MockDbService {
         studentAnsweredAt: new Date('2024-10-14T08:30:00.000Z'),
         teacherAnsweredAt: new Date('2024-10-14T08:30:00.000Z')
       }
-    ],    
+    ],
     mockActiveQuestionnaire: [
       {
         id: "efgh",
-        student: { id: "2", userName: "NN", fullName: "Nicklas Nilsson", role: "student" },
-        teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" },
+        student: { id: "2", userName: "NH", fullName: "Nicklas Helsberg", role: "student" },
+        teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" },
         isStudentFinished: true,
         isTeacherFinished: true,
         template: {
@@ -80,8 +81,8 @@ export class MockDbService {
       },
       {
         id: "ijkl",
-        student: { id: "3", userName: "AS", fullName: "Alexander Svensson", role: "student" },
-        teacher: { id: "1", userName: "MJ", fullName: "Max Jacobsen", role: "teacher" },
+        student: { id: "4", userName: "AMT", fullName: "Alexander Thamdrup", role: "student" },
+        teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" },
         isStudentFinished: false,
         isTeacherFinished: false,
         template: {
