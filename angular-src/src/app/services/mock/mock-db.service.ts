@@ -149,16 +149,20 @@ export class MockDbService {
       settings: {
         auth: {
           access_token_expire_minutes: 30,
+          ad_service_account: 'svc_backend_queries',
+          ad_service_password: 'Pa$$w0rd',
           algorithm: 'HS256',
-          domain: 'localhost',
-          ldap_base_dn: 'dc=example,dc=com',
-          ldap_server: 'ldap://localhost',
+          authentication_method: 'NTLM',
+          domain: '10.0.1.139',
+          ldap_base_dn: 'dc=next,dc=dev',
+          ldap_server: 'ldap://10.0.1.139',
+          salt_hash: 'b1865f9a4615cbcac2956f076a741841192dc65f4f6eebac66cc5ade440366c8',
           scopes: {
             admin: 'admin',
             student: 'student',
             teacher: 'teacher',
           },
-          secret_key: null,
+          secret_key: 'e33228799f663a35c4be9343cecd991ffedc6d6a88e6c20463744bd6ade87108',
         },
         database: {
           database_driver: null,
@@ -186,32 +190,52 @@ export class MockDbService {
             canBeEmpty: false,
             description: 'Access token expiration in minutes',
           },
+          ad_service_account: {
+            default: 'svc_backend_queries',
+            canBeEmpty: false,
+            description: 'AD Service Account',
+          },
+          ad_service_password: {
+            default: 'Pa$$w0rd',
+            canBeEmpty: false,
+            description: 'AD Service Password',
+          },
           algorithm: {
             default: 'HS256',
             canBeEmpty: false,
             description: 'Algorithm used for authentication',
           },
+          authentication_method: {
+            default: 'NTLM',
+            canBeEmpty: false,
+            description: 'Authentication method used',
+          },
           domain: {
-            default: 'localhost',
+            default: '10.0.1.139',
             canBeEmpty: false,
             description: 'Domain name',
           },
           ldap_base_dn: {
-            default: 'dc=example,dc=com',
+            default: 'dc=next,dc=dev',
             canBeEmpty: false,
             description: 'LDAP base DN',
           },
           ldap_server: {
-            default: 'ldap://localhost',
+            default: 'ldap://10.0.1.139',
             canBeEmpty: false,
             description: 'LDAP server URL',
+          },
+          salt_hash: {
+            default: 'b1865f9a4615cbcac2956f076a741841192dc65f4f6eebac66cc5ade440366c8',
+            canBeEmpty: false,
+            description: 'Salt hash for authentication',
           },
           scopes: {
             canBeEmpty: false,
             description: 'Access scopes',
           },
           secret_key: {
-            default: '',
+            default: 'e33228799f663a35c4be9343cecd991ffedc6d6a88e6c20463744bd6ade87108',
             canBeEmpty: true,
             description: 'Secret key used for authentication',
           },
@@ -279,6 +303,7 @@ export class MockDbService {
         },
       },
     },
+    
     mockLogs: {
       sql: [
         {
