@@ -11,6 +11,12 @@ from backend.lib.sql import models, schemas
 URL_FRIENDLY_BASE64: LiteralString = ascii_letters + digits + "-_"
 
 SQLAlchemyModel: TypeAlias = Union[DeclarativeBase, DeclarativeAttributeIntercept]
+OptionSchemaType: TypeAlias = Union[
+    schemas.CreateOptionModel, schemas.UpdateOptionModel
+]
+QuestionSchemaType: TypeAlias = Union[
+    schemas.CreateQuestionModel, schemas.UpdateQuestionModel
+]
 
 
 def build_sqlite_connection_args() -> Dict[str, Any]:
@@ -120,9 +126,7 @@ def teacher_name_condition(teacher_name: str) -> ColumnElement[bool]:
     )
 
 
-def create_option_model(
-    schema: schemas.CreateOptionModel, question_id: int
-) -> models.Option:
+def create_option_model(schema: OptionSchemaType, question_id: int) -> models.Option:
     return models.Option(
         question_id=question_id,
         value=schema.value,
@@ -132,7 +136,7 @@ def create_option_model(
 
 
 def create_question_model(
-    schema: schemas.CreateQuestionModel, template_id: str
+    schema: QuestionSchemaType, template_id: str
 ) -> models.Question:
     return models.Question(
         template_id=template_id,
