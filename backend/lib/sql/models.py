@@ -221,13 +221,13 @@ class QuestionTemplate(Base):
     description: Mapped[Optional[str]] = mapped_column(
         type_=String, index=False, nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[Optional[datetime]] = mapped_column(
         type_=DateTime(timezone=True),
         index=False,
         server_default=func.now(),
         nullable=False,
     )
-    last_updated: Mapped[datetime] = mapped_column(
+    last_updated: Mapped[Optional[datetime]] = mapped_column(
         type_=DateTime(timezone=True),
         index=False,
         server_default=func.now(),
