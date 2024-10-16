@@ -6,7 +6,7 @@ from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
 from sqlalchemy.sql import exists, select, or_, ColumnElement
 
 from backend import app_settings
-from backend.lib.sql import models
+from backend.lib.sql import models, schemas
 
 URL_FRIENDLY_BASE64: LiteralString = ascii_letters + digits + "-_"
 
@@ -117,4 +117,24 @@ def teacher_name_condition(teacher_name: str) -> ColumnElement[bool]:
         models.ActiveQuestionnaire.teacher.has(
             models.User.full_name.like(other=f"%{teacher_name}%")
         ),
+    )
+
+
+def create_option_model(
+    schema: schemas.CreateOptionModel, question_id: int
+) -> models.Option:
+    return models.Option(
+        question_id=question_id,
+        value=schema.value,
+        label=schema.label,
+        is_custom=schema.is_custom,
+    )
+
+
+def create_question_model(
+    schema: schemas.CreateQuestionModel, template_id: str
+) -> models.Question:
+    return models.Question(
+        template_id=template_id,
+        title=schema.title,
     )
