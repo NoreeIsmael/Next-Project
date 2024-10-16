@@ -26,7 +26,7 @@ HasID: TypeAlias = Union[ObjectHasTemplateID, str]
 
 def get_template_by_id(
     db: Session,
-    template: HasID,
+    template_id: HasID,
 ) -> Optional[models.QuestionTemplate]:
     """
     Retrieve a question template by its ID from the database.
@@ -40,12 +40,12 @@ def get_template_by_id(
         Optional[models.QuestionTemplate]: The template if found, otherwise None.
     """
     with db.begin():
-        if not isinstance(template, str):
-            template = template.id
+        if not isinstance(template_id, str):
+            template_id = template_id.id
 
         result: Result[Tuple[models.QuestionTemplate]] = db.execute(
             statement=select(models.QuestionTemplate).where(
-                models.QuestionTemplate.id == template
+                models.QuestionTemplate.id == template_id
             )
         )
         return result.scalars().first()
@@ -160,16 +160,16 @@ def update_template(
     Raises:
         TemplateNotFoundException: If the template with the given ID does not exist.
     """
-    if not isinstance(existing_id, str):
-        existing_id = existing_id.id
+    with db.begin():
+        if not isinstance(existing_id, str):
+            existing_id = existing_id.id
 
-    existing_template: Optional[models.QuestionTemplate] = get_template_by_id(
-        db=db, id=existing_id
-    )
-    if not existing_template:
-        raise TemplateNotFoundException(template_id=existing_id)
+        existing_template: Optional[models.QuestionTemplate] = get_template_by_id(
+            db=db, template_id=existing_id
+        )
+        if not existing_template:
+            raise TemplateNotFoundException(template_id=existing_id)
 
-    try:
         # Update the base template data
         existing_template.title = updated_template.title
         existing_template.description = updated_template.description
@@ -180,8 +180,6 @@ def update_template(
                 existing_template.questions, updated_template.questions, strict=True
             ):
                 existing_question.title = updated_question.title
-                existing_question.selected_option = updated_question.selected_option
-                existing_question.custom_answer = updated_question.custom_answer
 
                 # Update the existing options for the current question
                 try:
@@ -205,9 +203,8 @@ def update_template(
                         # Add any missing options
                         extra_options: int = len(existing_question.options)
                         for option in updated_question.options[extra_options:]:
-                            new_option: models.Option = add_option(
-                                db=db,
-                                option=option,
+                            new_option: models.Option = create_option_model(
+                                schema=option,
                                 question_id=existing_question.id,
                             )
                             existing_question.options.append(new_option)
@@ -226,21 +223,17 @@ def update_template(
                 # Add any missing questions
                 extra_questions: int = len(existing_template.questions)
                 for question in updated_template.questions[extra_questions:]:
-                    new_question: models.Question = add_question(
-                        db=db,
-                        question=question,
-                        id=existing_template.id,
+                    new_question: models.Question = create_question_model(
+                        schema=question,
+                        template_id=existing_template.id,
                     )
                     existing_template.questions.append(new_question)
             else:
                 raise
 
-    except Exception as e:
-        db.rollback()
-        raise e
+        db.add(instance=existing_template)
 
-    db.commit()
-    return existing_template
+        return existing_template
 
 
 def delete_template(db: Session, template: HasID) -> models.QuestionTemplate:
@@ -264,7 +257,7 @@ def delete_template(db: Session, template: HasID) -> models.QuestionTemplate:
     """
 
     template_to_delete: Optional[models.QuestionTemplate] = get_template_by_id(
-        db=db, template=template
+        db=db, template_id=template
     )
     if not template_to_delete:
         if isinstance(template, str):
