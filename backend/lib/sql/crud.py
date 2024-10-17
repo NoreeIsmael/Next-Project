@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Sequence, Union, Protocol, TypeAlias, List
+from typing import Tuple, Optional, Sequence, Union, Protocol, TypeAlias
 from sqlalchemy import Result, select, and_
 from sqlalchemy.orm import Session
 
@@ -33,16 +33,15 @@ def get_template_by_id(
 
     Args:
         db (Session): The database session to use for the query.
-        template (schemas.QuestionTemplateBase): The template data
-        containing the ID of the template to retrieve.
+        template_id (HasID): The ID of the template to retrieve.
 
     Returns:
         Optional[models.QuestionTemplate]: The template if found, otherwise None.
     """
-    with db.begin():
-        if not isinstance(template_id, str):
-            template_id = template_id.id
+    if not isinstance(template_id, str):
+        template_id = template_id.id
 
+    with db.begin_nested():
         result: Result[Tuple[models.QuestionTemplate]] = db.execute(
             statement=select(models.QuestionTemplate).where(
                 models.QuestionTemplate.id == template_id
@@ -66,7 +65,7 @@ def get_all_templates(
         are found, an empty sequence is returned.
     """
 
-    with db.begin():
+    with db.begin_nested():
         result: Result[Tuple[models.QuestionTemplate]] = db.execute(
             statement=select(models.QuestionTemplate)
         )
@@ -89,7 +88,7 @@ def get_templates_by_title(
         list, of all question templates with the given title. If no templates are found, an empty sequence is returned.
     """
 
-    with db.begin():
+    with db.begin_nested():
         result: Result[Tuple[models.QuestionTemplate]] = db.execute(
             statement=select(models.QuestionTemplate).where(
                 models.QuestionTemplate.title.like(other=f"%{title}%")
@@ -114,7 +113,7 @@ def add_template(
     Raises:
         TemplateAlreadyExistsException: If a template with the given ID already exists.
     """
-    with db.begin():
+    with db.begin_nested():
         # Create the new template
         new_template = models.QuestionTemplate(
             title=template.title,
@@ -138,6 +137,12 @@ def add_template(
                 )
                 new_template.questions[index].options.append(new_option)
 
+        # Confused why we aren't adding the individual questions and
+        # options to the database, or even filling in the foreign keys?
+        # No worries! SQLAlchemy is so smart that it will automatically
+        # add the new questions and options, and fill in the foreign keys
+        # to the correct template and question IDs when we add the new
+        # template to the database.
         db.add(instance=new_template)
         return new_template
 
@@ -160,10 +165,10 @@ def update_template(
     Raises:
         TemplateNotFoundException: If the template with the given ID does not exist.
     """
-    with db.begin():
-        if not isinstance(existing_id, str):
-            existing_id = existing_id.id
+    if not isinstance(existing_id, str):
+        existing_id = existing_id.id
 
+    with db.begin_nested():
         existing_template: Optional[models.QuestionTemplate] = get_template_by_id(
             db=db, template_id=existing_id
         )
@@ -192,44 +197,16 @@ def update_template(
                         existing_option.label = updated_option.label
                         existing_option.is_custom = updated_option.is_custom
                 except ValueError:
-                    if len(existing_question.options) > len(updated_question.options):
-                        # Delete any extra options
-                        for _ in range(
-                            len(updated_question.options),
-                            len(existing_question.options),
-                        ):
-                            db.delete(instance=existing_question.options.pop())
-                    elif len(existing_question.options) < len(updated_question.options):
-                        # Add any missing options
-                        extra_options: int = len(existing_question.options)
-                        for option in updated_question.options[extra_options:]:
-                            new_option: models.Option = create_option_model(
-                                schema=option,
-                                question_id=existing_question.id,
-                            )
-                            existing_question.options.append(new_option)
-                    else:
-                        raise
+                    existing_question = add_or_remove_options(
+                        existing_question=existing_question,
+                        updated_question=updated_question,
+                    )
 
         except ValueError:
-            if len(existing_template.questions) > len(updated_template.questions):
-                # Delete any extra questions
-                for _ in range(
-                    len(updated_template.questions),
-                    len(existing_template.questions),
-                ):
-                    db.delete(instance=existing_template.questions.pop())
-            elif len(existing_template.questions) < len(updated_template.questions):
-                # Add any missing questions
-                extra_questions: int = len(existing_template.questions)
-                for question in updated_template.questions[extra_questions:]:
-                    new_question: models.Question = create_question_model(
-                        schema=question,
-                        template_id=existing_template.id,
-                    )
-                    existing_template.questions.append(new_question)
-            else:
-                raise
+            existing_template = add_or_remove_questions(
+                existing_template=existing_template,
+                updated_template=updated_template,
+            )
 
         db.add(instance=existing_template)
 
@@ -238,36 +215,31 @@ def update_template(
 
 def delete_template(db: Session, template: HasID) -> models.QuestionTemplate:
     """
-    Deletes a question template from the database.
-
-    This function deletes a question template identified by the given template data.
-    It first flushes the current state of the database session, retrieves the template
-    by its ID, and raises an exception if the template is not found. If the template
-    exists, it is deleted from the database and the session is committed.
+    Deletes a template from the database.
 
     Args:
         db (Session): The database session to use for the operation.
-        template (schemas.QuestionTemplateBase): The template data containing the ID of the template to delete.
+        template (HasID): The template to delete, identified by its ID.
 
     Returns:
-        models.QuestionTemplate: The deleted question template.
+        models.QuestionTemplate: The deleted template object.
 
     Raises:
-        TemplateNotFoundException: If the template with the given ID is not found.
+        TemplateNotFoundException: If the template with the given ID does not exist.
     """
+    with db.begin_nested():
+        template_to_delete: Optional[models.QuestionTemplate] = get_template_by_id(
+            db=db, template_id=template
+        )
+        if not template_to_delete:
+            if isinstance(template, str):
+                raise TemplateNotFoundException(template_id=template)
+            else:
+                raise TemplateNotFoundException(template_id=template.id)
 
-    template_to_delete: Optional[models.QuestionTemplate] = get_template_by_id(
-        db=db, template_id=template
-    )
-    if not template_to_delete:
-        if isinstance(template, str):
-            raise TemplateNotFoundException(template_id=template)
-        else:
-            raise TemplateNotFoundException(template_id=template.id)
+        db.delete(instance=template_to_delete)
 
-    db.delete(instance=template_to_delete)
-    db.commit()
-    return template_to_delete
+        return template_to_delete
 
 
 def get_option_by_id(db: Session, option_id: int) -> Optional[schemas.OptionModel]:
@@ -282,10 +254,11 @@ def get_option_by_id(db: Session, option_id: int) -> Optional[schemas.OptionMode
         Optional[schemas.OptionModel]: The option if found, otherwise None.
     """
 
-    result: Result[Tuple[schemas.OptionModel]] = db.execute(
-        statement=select(models.Option).where(models.Option.id == option_id)
-    )
-    return result.scalars().first()
+    with db.begin_nested():
+        result: Result[Tuple[schemas.OptionModel]] = db.execute(
+            statement=select(models.Option).where(models.Option.id == option_id)
+        )
+        return result.scalars().first()
 
 
 def get_options_by_question_id(
@@ -302,10 +275,13 @@ def get_options_by_question_id(
         Sequence[schemas.OptionModel]: A sequence, typically a list, of all options for the given question. If no options are found, an empty sequence is returned.
     """
 
-    result: Result[Tuple[schemas.OptionModel]] = db.execute(
-        statement=select(models.Option).where(models.Option.question_id == question_id)
-    )
-    return result.scalars().all()
+    with db.begin_nested():
+        result: Result[Tuple[schemas.OptionModel]] = db.execute(
+            statement=select(models.Option).where(
+                models.Option.question_id == question_id
+            )
+        )
+        return result.scalars().all()
 
 
 def add_active_questionnaire(
@@ -325,43 +301,40 @@ def add_active_questionnaire(
     Returns:
         models.ActiveQuestionnaire: The newly created active questionnaire record.
     """
-    new_active_questionnaire = models.ActiveQuestionnaire(
-        student_id=questionnaire.student.id,
-        teacher_id=questionnaire.teacher.id,
-        is_student_finished=False,
-        is_teacher_finished=False,
-        template_reference_id=questionnaire.id,
-    )
-
-    db.add(instance=new_active_questionnaire)
-
-    # Check if the student exists in the database, if not add them
-    if not check_if_record_exists_by_id(
-        db=db, model=models.User, id=questionnaire.student.id
-    ):
-        new_student = models.User(
-            id=questionnaire.student.id,
-            user_name=questionnaire.student.user_name,
-            full_name=questionnaire.student.full_name,
-            role=questionnaire.student.role,
+    with db.begin_nested():
+        new_active_questionnaire = models.ActiveQuestionnaire(
+            student_id=questionnaire.student.id,
+            teacher_id=questionnaire.teacher.id,
+            template_reference_id=questionnaire.id,
         )
-        db.add(instance=new_student)
 
-    # Check if the teacher exists in the database, if not add them
-    if not check_if_record_exists_by_id(
-        db=db, model=models.User, id=questionnaire.teacher.id
-    ):
-        new_teacher = models.User(
-            id=questionnaire.teacher.id,
-            user_name=questionnaire.teacher.user_name,
-            full_name=questionnaire.teacher.full_name,
-            role=questionnaire.teacher.role,
-        )
-        db.add(instance=new_teacher)
+        db.add(instance=new_active_questionnaire)
 
-    db.commit()
+        # Check if the student exists in the database, if not add them
+        if not check_if_record_exists_by_id(
+            db=db, model=models.User, id=questionnaire.student.id
+        ):
+            new_student = models.User(
+                id=questionnaire.student.id,
+                user_name=questionnaire.student.user_name,
+                full_name=questionnaire.student.full_name,
+                role=questionnaire.student.role,
+            )
+            db.add(instance=new_student)
 
-    return new_active_questionnaire
+        # Check if the teacher exists in the database, if not add them
+        if not check_if_record_exists_by_id(
+            db=db, model=models.User, id=questionnaire.teacher.id
+        ):
+            new_teacher = models.User(
+                id=questionnaire.teacher.id,
+                user_name=questionnaire.teacher.user_name,
+                full_name=questionnaire.teacher.full_name,
+                role=questionnaire.teacher.role,
+            )
+            db.add(instance=new_teacher)
+
+        return new_active_questionnaire
 
 
 def get_all_active_questionnaires(
@@ -381,15 +354,16 @@ def get_all_active_questionnaires(
         Sequence[models.ActiveQuestionnaire]: A list of active questionnaires that match the given teacher and student.
     """
 
-    result: Result[Tuple[models.ActiveQuestionnaire]] = db.execute(
-        statement=select(models.ActiveQuestionnaire).where(
-            and_(
-                student_name_condition(student_name=student),
-                teacher_name_condition(teacher_name=teacher),
+    with db.begin_nested():
+        result: Result[Tuple[models.ActiveQuestionnaire]] = db.execute(
+            statement=select(models.ActiveQuestionnaire).where(
+                and_(
+                    student_name_condition(student_name=student),
+                    teacher_name_condition(teacher_name=teacher),
+                )
             )
         )
-    )
-    return result.scalars().all()
+        return result.scalars().all()
 
 
 def get_active_questionnaire_by_id(
@@ -407,12 +381,13 @@ def get_active_questionnaire_by_id(
         Optional[models.ActiveQuestionnaire]: The active questionnaire if found, otherwise None.
     """
 
-    result: Result[Tuple[models.ActiveQuestionnaire]] = db.execute(
-        statement=select(models.ActiveQuestionnaire).where(
-            models.ActiveQuestionnaire.id == questionnaire_id
+    with db.begin_nested():
+        result: Result[Tuple[models.ActiveQuestionnaire]] = db.execute(
+            statement=select(models.ActiveQuestionnaire).where(
+                models.ActiveQuestionnaire.id == questionnaire_id
+            )
         )
-    )
-    return result.scalars().first()
+        return result.scalars().first()
 
 
 def get_oldest_active_questionnaire_id_for_user(
@@ -430,12 +405,13 @@ def get_oldest_active_questionnaire_id_for_user(
         Optional[str]: The ID of the oldest active questionnaire if found, otherwise None.
     """
 
-    result: Result[Tuple[str]] = db.execute(
-        statement=select(models.ActiveQuestionnaire.id)
-        .where(user_id_condition(user_id=user_id))
-        .order_by(models.ActiveQuestionnaire.created_at)
-    )
-    return result.scalars().first()
+    with db.begin_nested():
+        result: Result[Tuple[str]] = db.execute(
+            statement=select(models.ActiveQuestionnaire.id)
+            .where(user_id_condition(user_id=user_id))
+            .order_by(models.ActiveQuestionnaire.created_at)
+        )
+        return result.scalars().first()
 
 
 def get_all_active_questionnaire_ids_for_user(
@@ -453,12 +429,13 @@ def get_all_active_questionnaire_ids_for_user(
         Sequence[str]: A sequence of active questionnaire IDs for the specified user.
     """
 
-    result: Result[Tuple[str]] = db.execute(
-        statement=select(models.ActiveQuestionnaire.id)
-        .where(user_id_condition(user_id=user_id))
-        .order_by(models.ActiveQuestionnaire.created_at)
-    )
-    return result.scalars().all()
+    with db.begin_nested():
+        result: Result[Tuple[str]] = db.execute(
+            statement=select(models.ActiveQuestionnaire.id)
+            .where(user_id_condition(user_id=user_id))
+            .order_by(models.ActiveQuestionnaire.created_at)
+        )
+        return result.scalars().all()
 
 
 def delete_active_questionnaire(
@@ -479,12 +456,96 @@ def delete_active_questionnaire(
         QuestionnaireNotFound: If no active questionnaire is found with the given ID.
     """
 
-    questionnaire_to_delete: Optional[models.ActiveQuestionnaire] = (
-        get_active_questionnaire_by_id(db=db, questionnaire_id=questionnaire_id)
-    )
-    if not questionnaire_to_delete:
-        raise QuestionnaireNotFound(questionnaire_id=questionnaire_id)
+    with db.begin_nested():
+        questionnaire_to_delete: Optional[models.ActiveQuestionnaire] = (
+            get_active_questionnaire_by_id(db=db, questionnaire_id=questionnaire_id)
+        )
+        if not questionnaire_to_delete:
+            raise QuestionnaireNotFound(questionnaire_id=questionnaire_id)
 
-    db.delete(instance=questionnaire_to_delete)
-    db.commit()
-    return questionnaire_to_delete
+        db.delete(instance=questionnaire_to_delete)
+        return questionnaire_to_delete
+
+
+def add_or_remove_options(
+    existing_question: models.Question,
+    updated_question: schemas.UpdateQuestionModel,
+) -> models.Question:
+    """
+    Add or remove options for a given question based on the updated question model.
+
+    If the number of options in the existing question is greater than the number of options
+    in the updated question, the extra options are deleted. If the number of options in the
+    existing question is less than the number of options in the updated question, the missing
+    options are added. If the number of options in the existing question is equal to the number
+    of options in the updated question, the options are returned as is.
+
+    Args:
+        existing_question (models.Question): The existing question object from the database.
+        updated_question (schemas.UpdateQuestionModel): The updated question model containing
+            the new set of options.
+
+    Returns:
+        models.Question: The updated question object with the modified options.
+    """
+    if len(existing_question.options) > len(updated_question.options):
+        # Delete any extra options
+        for _ in range(
+            len(updated_question.options),
+            len(existing_question.options),
+        ):
+            existing_question.options.remove(existing_question.options[-1])
+        return existing_question
+    elif len(existing_question.options) < len(updated_question.options):
+        # Add any missing options
+        extra_options: int = len(existing_question.options)
+        for option in updated_question.options[extra_options:]:
+            new_option: models.Option = create_option_model(
+                schema=option,
+                question_id=existing_question.id,
+            )
+            existing_question.options.append(new_option)
+        return existing_question
+    else:
+        return existing_question
+
+
+def add_or_remove_questions(
+    existing_template: models.QuestionTemplate,
+    updated_template: schemas.UpdateQuestionTemplateModel,
+) -> models.QuestionTemplate:
+    """
+    Add or remove questions from an existing question template based on an updated template.
+
+    If the updated template has fewer questions than the existing template, the extra questions
+    in the existing template will be deleted. If the updated template has more questions, the
+    additional questions will be added to the existing template. If the updated template has the
+    same number of questions, the questions will be returned as is.
+
+    Args:
+        existing_template (models.QuestionTemplate): The current question template.
+        updated_template (schemas.UpdateQuestionTemplateModel): The updated question template model.
+
+    Returns:
+        models.QuestionTemplate: The updated question template with questions added or removed.
+    """
+    if len(existing_template.questions) > len(updated_template.questions):
+        # Delete any extra questions
+        for _ in range(
+            len(updated_template.questions),
+            len(existing_template.questions),
+        ):
+            existing_template.questions.remove(existing_template.questions[-1])
+        return existing_template
+    elif len(existing_template.questions) < len(updated_template.questions):
+        # Add any missing questions
+        extra_questions: int = len(existing_template.questions)
+        for question in updated_template.questions[extra_questions:]:
+            new_question: models.Question = create_question_model(
+                schema=question,
+                template_id=existing_template.id,
+            )
+            existing_template.questions.append(new_question)
+        return existing_template
+    else:
+        return existing_template
