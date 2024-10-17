@@ -423,9 +423,9 @@ def update_template_on_question_or_option_change(
     Returns:
         None
     """
-    if isinstance(target, Question):
+    if isinstance(target, Question) and target.template is not None:
         template: QuestionTemplate = target.template
-    elif isinstance(target, Option):
+    elif isinstance(target, Option) and target.question is not None:
         template = target.question.template
     else:
         return
