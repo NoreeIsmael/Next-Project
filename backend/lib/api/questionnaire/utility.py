@@ -1,8 +1,10 @@
+from email.policy import HTTP
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from typing import Sequence, cast, Optional
+from typing import List, Sequence, cast, Optional
 
 from backend.lib import cache
-from backend.lib.sql import crud, models
+from backend.lib.sql import crud, models, schemas
 from backend.lib.api.questionnaire.models import (
     TemplateSearchRequest,
     QuestionnaireSearchRequest,
@@ -109,3 +111,57 @@ def query_questionnaires(
     cache.write(key=cached_key, value=questionnaires)
 
     return questionnaires[start : start + query.limit]  # noqa: E203
+
+
+def fetch_questionnaire_results(
+    db: Session, questionnaire_id: str
+) -> schemas.QuestionnaireResultModel:
+    """
+    Fetch the results of a questionnaire, including all answers and the associated student.
+
+    Args:
+        db (Session): The database session to use for querying.
+        questionnaire_id (str): The ID of the questionnaire to fetch results for.
+
+    Returns:
+        schemas.QuestionnaireResultModel: The results of the questionnaire.
+    """
+    questionnaire: Optional[models.ActiveQuestionnaire] = (
+        crud.get_active_questionnaire_by_id(db=db, questionnaire_id=questionnaire_id)
+    )
+    if questionnaire is None:
+        raise HTTPException(status_code=404, detail="Questionnaire not found")
+
+    teacher: models.User = questionnaire.teacher
+    student: models.User = questionnaire.student
+
+    users: schemas.TeacherStudentPairModel = schemas.TeacherStudentPairModel(
+        teacher=teacher, student=student
+    )
+
+    student_answers: List[schemas.AnswerModel] = []
+    teacher_answers: List[schemas.AnswerModel] = []
+
+    for answer in [q for q in questionnaire.answers if q.user_id == student.id]:
+        student_answers.append(schemas.AnswerModel.model_validate(answer))
+
+    for answer in [q for q in questionnaire.answers if q.user_id == teacher.id]:
+        teacher_answers.append(schemas.AnswerModel.model_validate(answer))
+
+    if not len(student_answers) == len(teacher_answers):
+        raise HTTPException(
+            status_code=500,
+            detail="The number of student and teacher answers do not match",
+        )
+
+    answers: List[schemas.AnswerResultModel] = []
+    for question in questionnaire.template.questions:
+        student_answer: str = next(
+            (a.answer for a in student_answers if a.question_id == question.id), ""
+        )
+
+    return schemas.AnswerSessionModel(
+        questionnaire_id=questionnaire_id,
+        users=users,
+        answers=answers,
+    )

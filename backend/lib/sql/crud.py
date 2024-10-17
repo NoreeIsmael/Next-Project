@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Sequence, Union, Protocol, TypeAlias
+from typing import List, Tuple, Optional, Sequence, Union, Protocol, TypeAlias
 from sqlalchemy import Result, select, and_
 from sqlalchemy.orm import Session
 
@@ -549,3 +549,22 @@ def add_or_remove_questions(
         return existing_template
     else:
         return existing_template
+
+
+def add_answers(
+    db: Session,
+    answers: schemas.AnswerSubmissionModel,
+) -> Sequence[models.Answer]:
+    with db.begin_nested():
+        new_answers: List[models.Answer] = []
+        for answer in answers.answers:
+            new_answer = models.Answer(
+                active_questionnaire_id=answers.questionnaire_id,
+                user_id=answers.user_id,
+                question_id=answer.question_id,
+                option_id=answer.selected_option_id,
+                custom_answer_text=answer.custom_answer_text,
+            )
+            new_answers.append(new_answer)
+        db.add_all(instances=new_answers)
+        return new_answers
