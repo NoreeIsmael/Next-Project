@@ -232,7 +232,7 @@ class ActiveQuestionnaireModel(CamelBaseModel):
     id: str
     student: User
     teacher: User
-    is_student_finished: bool
-    is_teacher_finished: bool
     template: QuestionnaireTemplateModel
     created_at: datetime
+    student_finished_at: Optional[datetime]
+    teacher_finished_at: Optional[datetime]
