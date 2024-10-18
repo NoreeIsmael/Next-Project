@@ -63,7 +63,7 @@ export class DataService {
 
 
   getResults(activeQuestionnaireId: string): Observable<AnswerSession> {
-    const url = `${this.apiUrl}/results/${activeQuestionnaireId}`;
+    const url = `${this.apiUrl}/questionnaire/results/${activeQuestionnaireId}`;
     return this.http.get<AnswerSession>(url)
       .pipe(
         catchError(this.handleError<AnswerSession>('getResults'))

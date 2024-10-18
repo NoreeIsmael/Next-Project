@@ -5,6 +5,7 @@ from typing import List, Sequence, cast, Optional
 
 from backend.lib import cache
 from backend.lib.sql import crud, models, schemas
+from backend.lib.sql.utility import create_user_schema
 from backend.lib.api.questionnaire.models import (
     TemplateSearchRequest,
     QuestionnaireSearchRequest,
@@ -133,18 +134,8 @@ def fetch_questionnaire_results(
     if questionnaire is None:
         raise HTTPException(status_code=404, detail="Questionnaire not found")
 
-    teacher: schemas.User = schemas.User(
-        id=questionnaire.teacher_id,
-        user_name=questionnaire.teacher.user_name,
-        full_name=questionnaire.teacher.full_name,
-        role=questionnaire.teacher.role,
-    )
-    student: schemas.User = schemas.User(
-        id=questionnaire.student_id,
-        user_name=questionnaire.student.user_name,
-        full_name=questionnaire.student.full_name,
-        role=questionnaire.student.role,
-    )
+    student: schemas.User = create_user_schema(user=questionnaire.student)
+    teacher: schemas.User = create_user_schema(user=questionnaire.teacher)
 
     users: schemas.TeacherStudentPairModel = schemas.TeacherStudentPairModel(
         teacher=teacher, student=student
