@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from backend.lib.sql import schemas, models
-from backend.lib.sql.utils import (
+from backend.lib.sql.utility import (
     check_if_record_exists_by_id,
     user_id_condition,
     student_name_condition,
