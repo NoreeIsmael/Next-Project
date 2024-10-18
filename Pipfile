@@ -26,7 +26,6 @@ pyyaml = "*"
 toml = "*"
 pre-commit = "*"
 types-cachetools = "*"
-types-pyjwt = "*"
 
 [requires]
 python_version = "3.12"
