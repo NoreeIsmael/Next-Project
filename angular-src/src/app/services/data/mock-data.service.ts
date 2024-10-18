@@ -308,8 +308,8 @@ getLogs(
         title: template.title,
         description: template.description
       },
-      studentFinishedAt: new Date(),
-      teacherFinishedAt: new Date(),
+      studentFinishedAt: null,
+      teacherFinishedAt: null,
       createdAt: new Date()
     };
 
