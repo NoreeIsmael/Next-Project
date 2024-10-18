@@ -266,8 +266,8 @@ class ActiveQuestionnaireModel(CamelBaseModel):
     teacher: User
     template: QuestionnaireTemplateModel
     created_at: datetime
-    student_finished_at: Optional[datetime]
-    teacher_finished_at: Optional[datetime]
+    student_finished_at: Optional[datetime] = None
+    teacher_finished_at: Optional[datetime] = None
 
 
 class TeacherStudentPairModel(CamelBaseModel):
