@@ -197,7 +197,7 @@ export class DataService {
 
   // Submit user answers
   submitUserAnswers(userId: string, answers: Answer[], questionnaireId: string): Observable<void> {
-    const url = `${this.apiUrl}/v1/questionnaire/answers/submit`;
+    const url = `${this.apiUrl}/questionnaire/answers/submit`;
     const body = { userId, questionnaireId, answers };
     return this.http.post<void>(url, body)
     .pipe(
