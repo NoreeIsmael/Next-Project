@@ -1,6 +1,7 @@
 from typing import List, Tuple, Optional, Sequence, Union, Protocol, TypeAlias
 from sqlalchemy import Result, select, and_
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from backend.lib.sql import schemas, models
 from backend.lib.sql.utils import (
@@ -567,4 +568,39 @@ def add_answers(
             )
             new_answers.append(new_answer)
         db.add_all(instances=new_answers)
+
+        mark_user_completed_questionnaire(
+            db=db,
+            user_id=answers.user_id,
+            questionnaire_id=answers.questionnaire_id,
+        )
+
         return new_answers
+
+
+def mark_user_completed_questionnaire(
+    db: Session,
+    user_id: str,
+    questionnaire_id: str,
+) -> models.ActiveQuestionnaire:
+    with db.begin_nested():
+        questionnaire: models.ActiveQuestionnaire = db.execute(
+            statement=select(models.ActiveQuestionnaire).where(
+                models.ActiveQuestionnaire.id == questionnaire_id
+            )
+        ).scalar_one()
+
+        user: models.User = db.execute(
+            statement=select(models.User).where(models.User.id == user_id)
+        ).scalar_one()
+
+        if user.role == "student":
+            questionnaire.student_finished_at = datetime.now()
+
+        elif user.role == "teacher":
+            questionnaire.teacher_finished_at = datetime.now()
+
+        else:
+            raise ValueError("Invalid user role")
+
+        return questionnaire
