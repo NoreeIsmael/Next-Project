@@ -142,3 +142,21 @@ def create_question_model(
         template_id=template_id,
         title=schema.title,
     )
+
+
+def create_user_schema(user: models.User) -> schemas.User:
+    """
+    Converts a User model instance to a User schema instance.
+
+    Args:
+        user (models.User): The User model instance to be converted.
+
+    Returns:
+        schemas.User: The corresponding User schema instance.
+    """
+    return schemas.User(
+        id=user.id,
+        user_name=user.user_name,
+        full_name=user.full_name,
+        role=user.role,
+    )
