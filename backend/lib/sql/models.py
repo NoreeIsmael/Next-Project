@@ -252,6 +252,7 @@ class QuestionTemplate(Base):
     template_questionnaires: Mapped[List["ActiveQuestionnaire"]] = relationship(
         argument="ActiveQuestionnaire",
         back_populates="template",
+        cascade="all, delete-orphan",
         lazy="select",
     )
 
