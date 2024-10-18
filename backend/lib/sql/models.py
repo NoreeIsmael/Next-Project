@@ -15,7 +15,6 @@ from sqlalchemy import (
     Connection,
     MetaData,
     Text,
-    CheckConstraint,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
