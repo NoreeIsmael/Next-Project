@@ -36,10 +36,11 @@ export class MockDataService {
     // Find an active questionnaire for the user, regardless of role (student or teacher)
     const activeQuestionnaire = mockActiveQuestionnaires.find((questionnaire: ActiveQuestionnaire) => {
       return (
-        (questionnaire.student.id === userId && !questionnaire.isStudentFinished) ||
-        (questionnaire.teacher.id === userId && !questionnaire.isTeacherFinished)
+        (questionnaire.student.id === userId && questionnaire.studentFinishedAt === null) ||
+        (questionnaire.teacher.id === userId && questionnaire.teacherFinishedAt === null)
       );
     });
+    
   
     // Return the ID of the active questionnaire if found, or null otherwise
     if (activeQuestionnaire) {
@@ -183,10 +184,10 @@ getLogs(
     });
     // Set the completion status for the user
     if (userId === activeQuestionnaire.student.id) {
-      activeQuestionnaire.isStudentFinished = true;
+      activeQuestionnaire.studentFinishedAt = new Date(); // Mark student as finished
       answerSession!.studentAnsweredAt = new Date();
     } else if (userId === activeQuestionnaire.teacher.id) {
-      activeQuestionnaire.isTeacherFinished = true;
+      activeQuestionnaire.teacherFinishedAt = new Date(); // Mark teacher as finished
       answerSession!.teacherAnsweredAt = new Date();
     }
   
@@ -307,8 +308,8 @@ getLogs(
         title: template.title,
         description: template.description
       },
-      isStudentFinished: false,
-      isTeacherFinished: false,
+      studentFinishedAt: new Date(),
+      teacherFinishedAt: new Date(),
       createdAt: new Date()
     };
 
@@ -429,17 +430,19 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
       );
     }
   
-    // Filter by whether the student has finished (handling boolean values)
     if (filter.studentIsFinished !== undefined) {
       filteredQuestionnaires = filteredQuestionnaires.filter(q =>
-        q.isStudentFinished === filter.studentIsFinished
+        filter.studentIsFinished
+          ? q.studentFinishedAt !== null // Student has finished
+          : q.studentFinishedAt === null  // Student has not finished
       );
     }
-  
-    // Filter by whether the teacher has finished (handling boolean values)
+    
     if (filter.teacherIsFinished !== undefined) {
       filteredQuestionnaires = filteredQuestionnaires.filter(q =>
-        q.isTeacherFinished === filter.teacherIsFinished
+        filter.teacherIsFinished
+          ? q.teacherFinishedAt !== null // Teacher has finished
+          : q.teacherFinishedAt === null  // Teacher has not finished
       );
     }
   
@@ -465,8 +468,8 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
         const userId = decodedToken ? decodedToken['sub'] : null;
   
         const activeQuestionnaire = this.mockDbService.mockData.mockActiveQuestionnaire.find(aq => 
-          (aq.student.id === userId && !aq.isStudentFinished) || 
-          (aq.teacher.id === userId && !aq.isTeacherFinished)
+          (aq.student.id === userId && aq.studentFinishedAt === null) || 
+          (aq.teacher.id === userId && aq.teacherFinishedAt === null)
         );
   
         return activeQuestionnaire ? activeQuestionnaire.id : null;
@@ -566,7 +569,9 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
    * @returns True if the student is in an active questionnaire, false otherwise.
    */
   isStudentInQuestionnaire(studentId: string): boolean {
-    return this.mockDbService.mockData.mockActiveQuestionnaire.some(aq => aq.student.id === studentId && !aq.isStudentFinished);
+    return this.mockDbService.mockData.mockActiveQuestionnaire.some(aq => 
+      aq.student.id === studentId && aq.studentFinishedAt === null
+    );
   }
 
   /**
@@ -600,13 +605,14 @@ getTemplates(page: number = 1, limit: number = 10, titleString?: string): Observ
         return of(false); // Role mismatch, deny access
       }
     
-      if (role === 'student' && activeQuestionnaire.student.id == userId && !activeQuestionnaire.isStudentFinished) {
+      if (role === 'student' && activeQuestionnaire.student.id == userId && activeQuestionnaire.studentFinishedAt === null) {
         return of(true);
       }
-    
-      if (role === 'teacher' && activeQuestionnaire.teacher.id == userId && !activeQuestionnaire.isTeacherFinished) {
+      
+      if (role === 'teacher' && activeQuestionnaire.teacher.id == userId && activeQuestionnaire.teacherFinishedAt === null) {
         return of(true);
       }
+      
     
       return of(false);
     }

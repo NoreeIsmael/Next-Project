@@ -19,8 +19,8 @@
         <strong>Teacher:</strong> {{ questionnaire.teacher.fullName }} ({{ questionnaire.teacher.userName }})<br>
         <strong>Template:</strong> {{ questionnaire.template.title }}<br>
         <strong>Description:</strong> {{ questionnaire.template.description }}<br>
-        <strong>Student Finished:</strong> {{ questionnaire.isStudentFinished ? 'Yes' : 'No' }}<br>
-        <strong>Teacher Finished:</strong> {{ questionnaire.isTeacherFinished ? 'Yes' : 'No' }}<br>
+        <strong>Student Finished:</strong> {{ questionnaire.studentFinishedAt ? 'Yes' : 'No' }}<br>
+        <strong>Teacher Finished:</strong> {{ questionnaire.teacherFinishedAt ? 'Yes' : 'No' }}<br>
         <strong>Created At:</strong> {{ questionnaire.createdAt | date:'short' }}<br>
       </li>
     </ul>

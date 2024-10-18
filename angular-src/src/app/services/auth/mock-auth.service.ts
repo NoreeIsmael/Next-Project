@@ -33,8 +33,8 @@ export class MockAuthService {
    */
   loginAuthentication(userName: string, password: string): Observable<{ access_token: string } | { error: string }> {
     const matchedUser = this.mockDbService.mockData.mockUsers.find(user => user.userName === userName);
+    
     // Check if user is found and password matches (mock password check)
-    console.log(userName)
     if (matchedUser && password === 'Pa$$w0rd') {
       const token = this.generateMockToken(matchedUser);
 

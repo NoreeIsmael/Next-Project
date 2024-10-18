@@ -51,8 +51,8 @@ export interface ActiveQuestionnaire {
   id: string; // ID of the active questionnaire instance
   student: User; // The student involved in the questionnaire
   teacher: User; // The teacher involved in the questionnaire
-  isStudentFinished: boolean; // Whether the student has finished the questionnaire
-  isTeacherFinished: boolean; // Whether the teacher has finished the questionnaire
+  studentFinishedAt? : null | Date; // Whether the student has finished the questionnaire
+  teacherFinishedAt? : null | Date; // Whether the teacher has finished the questionnaire
   template: {
     id: string; // ID of the template used
     title: string; // Title of the template

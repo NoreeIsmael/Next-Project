@@ -41,12 +41,12 @@ export class MockDbService {
           student: { id: "2", userName: "NH", fullName: "Nicklas Helsberg", role: "student" },
           teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" }
         },
-        answers: [
-          { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: 'Understands tasks', teacherAnswer: 'Correct' },
-          { questionId: 2, questionTitle: 'Kreativitet og selvstændighed', studentAnswer: 'Shows initiative', teacherAnswer: 'Needs improvement' },
-          { questionId: 3, questionTitle: 'Arbejdsindsats', studentAnswer: 'Good effort', teacherAnswer: 'Above average' },
-          { questionId: 4, questionTitle: 'Orden og omhyggelighed', studentAnswer: 'Organized', teacherAnswer: 'Good' }
-        ],
+        answers : [
+          { questionId: 1, questionTitle: 'Indlæringsevne', studentAnswer: 'Let ved at forstå arbejdsopgaverne og anvende den i praksis. Har let ved at tilegne sig ny viden.', teacherAnswer: 'Mindre behov for oplæring end normalt. Kan selv finde/tilegne sig ny viden.' },
+          { questionId: 2, questionTitle: 'Kreativitet og selvstændighed', studentAnswer: 'Viser normalt initiativ. Kommer selv med løsningsforslag. Tilrettelægger eget arbejde.', teacherAnswer: 'Viser ringe initiativ. Kommer ikke med løsningsforslag. Viser ingen interesse i at tilægge eget arbejde.' },
+          { questionId: 3, questionTitle: 'Arbejdsindsats', studentAnswer: 'Middel', teacherAnswer: 'Over middel' },
+          { questionId: 4, questionTitle: 'Orden og omhyggelighed', studentAnswer: 'Meget påpasselig både i praktik og teori. God orden.', teacherAnswer: 'God forståelse for materialevalg. Særdeles god orden.' }
+        ],        
         studentAnsweredAt: new Date('2024-10-14T08:30:00.000Z'),
         teacherAnsweredAt: new Date('2024-10-14T09:00:00.000Z')
       },
@@ -71,25 +71,27 @@ export class MockDbService {
         id: "efgh",
         student: { id: "2", userName: "NH", fullName: "Nicklas Helsberg", role: "student" },
         teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" },
-        isStudentFinished: true,
-        isTeacherFinished: true,
+        studentFinishedAt: new Date(),
+        teacherFinishedAt: new Date(),
         template: {
           id: 'template1',
           title: 'Employee Performance Review',
           description: 'A template for assessing employee performance in various aspects of their job.'
-        }
+        },
+        createdAt: new Date()
       },
       {
         id: "ijkl",
         student: { id: "4", userName: "AMT", fullName: "Alexander Thamdrup", role: "student" },
         teacher: { id: "1", userName: "userteacher", fullName: "Teach", role: "teacher" },
-        isStudentFinished: false,
-        isTeacherFinished: false,
+        studentFinishedAt: null,
+        teacherFinishedAt: null,
         template: {
           id: 'template1',
           title: 'Employee Performance Review',
           description: 'A template for assessing employee performance in various aspects of their job.'
-        }
+        },
+        createdAt: new Date()
       }
     ],
     mockQuestionTemplates: [
