@@ -294,8 +294,8 @@ class AnswerModel(CamelBaseModel):
     """
 
     question_id: int
-    selected_option_id: Optional[int]
-    custom_answer_text: Optional[str]
+    selected_option_id: Optional[int] = 0
+    custom_answer_text: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_answer(self) -> Self:
